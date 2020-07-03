@@ -59,6 +59,12 @@ Shengcai Liao
 Inception Institute of Artificial Intelligence (IIAI)  
 shengcai.liao@inceptioniai.org
 
-# References
-[1] Shengcai Liao and Ling Shao, "Interpretable and Generalizable Person Re-identification with Query-adaptive 
-Convolution and Temporal Lifting." In arXiv preprint, arXiv:1904.10424, 2019.
+# Citation
+[1] Shengcai Liao and Ling Shao, "Interpretable and Generalizable Person Re-identification with Query-adaptive Convolution and Temporal Lifting." In the 16th European Conference on Computer Vision (ECCV), 23-28 August, 2020.
+
+@inproceedings{Liao-ECCV2020-QAConv,  
+  title={Interpretable and Generalizable Person Re-identification with Query-adaptive Convolution and Temporal Lifting},  
+  author={Wen, Yandong and Zhang, Kaipeng and Li, Zhifeng and Qiao, Yu},  
+  booktitle={European conference on computer vision (ECCV)},  
+  year={2020}  
+}
