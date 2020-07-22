@@ -3,10 +3,11 @@ import os.path as osp
 from glob import glob
 import re
 
+
 class Duke(object):
 
     def __init__(self, root, combine_all=False):
-        assert(not combine_all)
+        assert (not combine_all)
         self.images_dir = osp.join(root)
         self.train_path = 'bounding_box_train'
         self.gallery_path = 'bounding_box_test'
@@ -38,7 +39,7 @@ class Duke(object):
             pid = all_pids[pid]
             cam -= 1
             time = (frame + offset[cam]) / fps
-            ret.append((fname, pid, cam, time))
+            ret.append([fname, pid, cam, time])
         return ret, int(len(all_pids))
 
     def load(self):

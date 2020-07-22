@@ -30,7 +30,7 @@ class MSMT(object):
 
         for img_idx, img_info in enumerate(lines):
             img_path, pid = img_info.split(' ')
-            pid = int(pid) # no need to relabel
+            pid = int(pid)  # no need to relabel
             if pid not in all_pids:
                 all_pids[pid] = pid
             camid = int(img_path.split('_')[2]) - 1  # index starts from 0

@@ -1,15 +1,14 @@
 """Class for the Query-Adaptive Convolution (QAConv) loss
     QAConv is an effective image matching method proposed in
     Shengcai Liao and Ling Shao, "Interpretable and Generalizable Person Re-identification with Query-adaptive
-    Convolution and Temporal Lifting." In arXiv preprint, arXiv:1904.10424, 2019.
+    Convolution and Temporal Lifting." In The European Conference on Computer Vision (ECCV), 23-28 August, 2020.
     Author:
         Shengcai Liao
         scliao@ieee.org
     Version:
-        V1.0
-        12-12-2019
+        V1.1
+        July 13, 2020
     """
-
 
 import torch
 from torch import nn
@@ -18,7 +17,7 @@ from torch.nn import functional as F
 
 
 class QAConvLoss(Module):
-    def __init__(self, num_classes, num_features, height, width, mem_batch_size=4200):
+    def __init__(self, num_classes, num_features, height, width, mem_batch_size=16):
         """
         Inputs:
             num_classes: the number of classes in the training set.
@@ -54,23 +53,21 @@ class QAConvLoss(Module):
     def forward(self, feature, target):
         self._check_input_dim(feature)
 
-        fea = F.normalize(feature)
-        fea = fea.permute([0, 2, 3, 1])  # [b, h, w, d]
-        kernel = fea.contiguous().view(-1, self.num_features, 1, 1)  # [bhw, d, 1, 1]
-        class_memory = F.normalize(self.class_memory)  # [c, d, h, w]
+        kernel = feature.permute([0, 2, 3, 1])  # [b, h, w, d]
+        kernel = kernel.reshape(-1, self.num_features, 1, 1)  # [bhw, d, 1, 1]
 
         hw = self.height * self.width
         batch_size = target.size(0)
 
         if self.mem_batch_size < self.num_classes:
-            score = torch.zeros(self.num_classes, batch_size, 2 * hw).to(feature.device)
+            score = torch.zeros(self.num_classes, batch_size, 2 * hw, device=feature.device)
             for i in range(0, self.num_classes, self.mem_batch_size):
                 j = min(i + self.mem_batch_size, self.num_classes)
-                s = F.conv2d(class_memory[i: j, :, :, :], kernel)  # [m, bhw, h, w]
+                s = F.conv2d(self.class_memory[i: j, :, :, :].detach().clone(), kernel)  # [m, bhw, h, w]
                 s = s.view(-1, batch_size, hw, hw)
                 score[i: j, :, :] = torch.cat((s.max(dim=2)[0], s.max(dim=3)[0]), dim=-1)  # [m, b, 2 * hw]
         else:
-            score = F.conv2d(class_memory, kernel)  # [c, bhw, h, w]
+            score = F.conv2d(self.class_memory.detach().clone(), kernel)  # [c, bhw, h, w]
             score = score.view(self.num_classes, batch_size, hw, hw)
             score = torch.cat((score.max(dim=2)[0], score.max(dim=3)[0]), dim=-1)
 

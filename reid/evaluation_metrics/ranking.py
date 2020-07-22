@@ -127,4 +127,3 @@ def mean_ap(distmat, query_ids=None, gallery_ids=None,
     if len(aps) == 0:
         raise RuntimeError("No valid query")
     return np.mean(aps)
-

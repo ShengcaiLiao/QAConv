@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 from torch import nn
+from torch.nn import functional as F
 import torchvision
 
 fea_dims_small = {'layer2': 128, 'layer3': 256, 'layer4': 512}
@@ -51,6 +52,8 @@ class ResNet(nn.Module):
         if self.neck > 0:
             x = self.neck_conv(x)
             x = self.neck_bn(x)
+
+        x = F.normalize(x)
 
         return x
 

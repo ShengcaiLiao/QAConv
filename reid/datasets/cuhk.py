@@ -7,7 +7,7 @@ import re
 class CUHK(object):
 
     def __init__(self, root, combine_all=False):
-        assert(not combine_all)
+        assert (not combine_all)
         self.images_dir = osp.join(root)
         self.train_path = 'bounding_box_train'
         self.gallery_path = 'bounding_box_test'
@@ -34,7 +34,7 @@ class CUHK(object):
                     all_pids[pid] = pid
             pid = all_pids[pid]
             cam -= 1
-            ret.append((fname, pid, cam, 0))
+            ret.append([fname, pid, cam, 0])
         return ret, int(len(all_pids))
 
     def load(self):

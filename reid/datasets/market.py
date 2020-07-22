@@ -8,7 +8,7 @@ import numpy as np
 class Market(object):
 
     def __init__(self, root, combine_all=False):
-        assert(not combine_all)
+        assert (not combine_all)
         self.images_dir = osp.join(root)
         self.train_path = 'bounding_box_train'
         self.gallery_path = 'bounding_box_test'
@@ -57,6 +57,10 @@ class Market(object):
         prob_session_id -= 1
         prob_cam_id = np.array([cam for _, _, cam in self.query])
 
+        # For several sessions from each camera, we roughly calculated the overall time frames
+        # of each session as offset, and made a cumulative record by assuming the video sessions
+        # were continuously recorded.
+
         offset = np.zeros((6, 6), dtype=gal_frame_id.dtype)
         for c in range(6):
             for s in range(1, 6):
@@ -77,6 +81,7 @@ class Market(object):
                     gal_frame_id[np.logical_and(gal_cam_id == c, gal_session_id == s)] += offset[c][s]
                 if np.logical_and(prob_cam_id == c, prob_session_id == s).size > 0:
                     prob_frame_id[np.logical_and(prob_cam_id == c, prob_session_id == s)] += offset[c][s]
+
         fps = 25.
         train_time = np.true_divide(train_frame_id, fps)
         gal_time = np.true_divide(gal_frame_id, fps)

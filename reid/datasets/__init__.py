@@ -4,7 +4,6 @@ from .market import Market
 from .cuhk import CUHK
 from .msmt import MSMT
 
-
 __factory = {
     'market': Market,
     'duke': Duke,

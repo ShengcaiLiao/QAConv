@@ -9,6 +9,7 @@ from .utils import to_torch
 from .evaluation_metrics import cmc, mean_ap
 from reid.loss.qaconv import QAConv
 from .tlift import TLift
+from .rerank import re_ranking
 
 
 def pre_tlift(gallery, query):
@@ -56,7 +57,8 @@ def extract_features(model, data_loader):
     return features, labels
 
 
-def pairwise_distance(gal_fea, prob_fea, qaconv_layer, gal_batch_size=128, prob_batch_size=4096):
+def pairwise_distance(gal_fea, prob_fea, qaconv_layer, gal_batch_size=128,
+                      prob_batch_size=4096, transpose=False):
     with torch.no_grad():
         num_gals = gal_fea.size(0)
         num_probs = prob_fea.size(0)
@@ -67,7 +69,11 @@ def pairwise_distance(gal_fea, prob_fea, qaconv_layer, gal_batch_size=128, prob_
             for k in range(0, num_gals, gal_batch_size):
                 k2 = min(k + gal_batch_size, num_gals)
                 score[k: k2, i: j] = qaconv(gal_fea[k: k2, :, :, :].cuda())
-    return 1. - score.cpu()  # [g, p]
+        if transpose:
+            dist = (1. - score.t()).cpu().numpy()  # [p, g]
+        else:
+            dist = (1. - score).cpu().numpy()  # [g, p]
+    return dist
 
 
 def evaluate_all(distmat, query=None, gallery=None,
@@ -104,74 +110,13 @@ def evaluate_all(distmat, query=None, gallery=None,
     return cmc_scores['market1501'][0], mAP
 
 
-def reranking(dist, query_num, k1=20, k2=6, lamda_value=0.3):
-    original_dist = dist.numpy()
-    all_num = original_dist.shape[0]
-    original_dist = np.transpose(original_dist / np.max(original_dist, axis=0))
-    V = np.zeros_like(original_dist).astype(np.float16)
-    initial_rank = np.argsort(original_dist).astype(np.int32)
-
-    print('starting re_ranking...', end='\t')
-    for i in range(all_num):
-        # k-reciprocal neighbors
-        forward_k_neigh_index = initial_rank[i, :k1 + 1]
-        backward_k_neigh_index = initial_rank[forward_k_neigh_index, :k1 + 1]
-        fi = np.where(backward_k_neigh_index == i)[0]
-        k_reciprocal_index = forward_k_neigh_index[fi]
-        k_reciprocal_expansion_index = k_reciprocal_index
-        for j in range(len(k_reciprocal_index)):
-            candidate = k_reciprocal_index[j]
-            candidate_forward_k_neigh_index = initial_rank[candidate, :int(np.around(k1 / 2)) + 1]
-            candidate_backward_k_neigh_index = initial_rank[candidate_forward_k_neigh_index,
-                                               :int(np.around(k1 / 2)) + 1]
-            fi_candidate = np.where(candidate_backward_k_neigh_index == candidate)[0]
-            candidate_k_reciprocal_index = candidate_forward_k_neigh_index[fi_candidate]
-            if len(np.intersect1d(candidate_k_reciprocal_index, k_reciprocal_index)) > 2 / 3 * len(
-                    candidate_k_reciprocal_index):
-                k_reciprocal_expansion_index = np.append(k_reciprocal_expansion_index, candidate_k_reciprocal_index)
-
-        k_reciprocal_expansion_index = np.unique(k_reciprocal_expansion_index)
-        weight = np.exp(-original_dist[i, k_reciprocal_expansion_index])
-        V[i, k_reciprocal_expansion_index] = weight / np.sum(weight)
-    original_dist = original_dist[:query_num, ]
-    if k2 != 1:
-        V_qe = np.zeros_like(V, dtype=np.float16)
-        for i in range(all_num):
-            V_qe[i, :] = np.mean(V[initial_rank[i, :k2], :], axis=0)
-        V = V_qe
-        del V_qe
-    del initial_rank
-    invIndex = []
-    for i in range(all_num):
-        invIndex.append(np.where(V[:, i] != 0)[0])
-
-    jaccard_dist = np.zeros_like(original_dist, dtype=np.float16)
-
-    for i in range(query_num):
-        temp_min = np.zeros(shape=[1, all_num], dtype=np.float16)
-        indNonZero = np.where(V[i, :] != 0)[0]
-        indImages = []
-        indImages = [invIndex[ind] for ind in indNonZero]
-        for j in range(len(indNonZero)):
-            temp_min[0, indImages[j]] = temp_min[0, indImages[j]] + np.minimum(V[i, indNonZero[j]],
-                                                                               V[indImages[j], indNonZero[j]])
-        jaccard_dist[i] = 1 - temp_min / (2 - temp_min)
-
-    final_dist = jaccard_dist * (1 - lamda_value) + original_dist * lamda_value
-    del original_dist
-    del V
-    del jaccard_dist
-    final_dist = final_dist[:query_num, query_num:]
-    return final_dist
-
-
 class Evaluator(object):
     def __init__(self, model):
         super(Evaluator, self).__init__()
         self.model = model
 
     def evaluate(self, query_loader, gallery_loader, testset, qaconv_layer, gal_batch_size=128,
-                 prob_batch_size=4096, tau=100, sigma=200, K=10, alpha=0.2):
+                 prob_batch_size=4096, tau=100, sigma=100, K=100, alpha=0.1):
         query = testset.query
         gallery = testset.gallery
         prob_fea, _ = extract_features(self.model, query_loader)
@@ -181,27 +126,16 @@ class Evaluator(object):
 
         print('Compute similarity...', end='\t')
         start = time.time()
-        dist_t = pairwise_distance(gal_fea, prob_fea, qaconv_layer, gal_batch_size, prob_batch_size)
+        dist = pairwise_distance(gal_fea, prob_fea, qaconv_layer, gal_batch_size, prob_batch_size,
+                                 transpose=True)  # [p, g]
         print('Time: %.3f seconds.' % (time.time() - start))
-        dist = dist_t.t()  # [p, g]
         rank1, mAP = evaluate_all(dist, query=query, gallery=gallery)
 
-        num_gal = gal_fea.size(0)
-        num_prob = prob_fea.size(0)
-        num_all = num_gal + num_prob
-        dist_rerank = torch.zeros(num_all, num_all)
         print('Compute similarity for rerank...', end='\t')
         start = time.time()
-
-        with torch.no_grad():
-            dist_rerank[:num_prob, num_prob:] = dist
-            dist_rerank[num_prob:, :num_prob] = dist_t
-            dist_rerank[:num_prob, :num_prob] = pairwise_distance(prob_fea, prob_fea, qaconv_layer, gal_batch_size,
-                                                                  prob_batch_size)
-            dist_rerank[num_prob:, num_prob:] = pairwise_distance(gal_fea, gal_fea, qaconv_layer, gal_batch_size,
-                                                                  prob_batch_size)
-
-        dist_rerank = reranking(dist_rerank, num_prob)
+        q_q_dist = pairwise_distance(prob_fea, prob_fea, qaconv_layer, gal_batch_size, prob_batch_size)
+        g_g_dist = pairwise_distance(gal_fea, gal_fea, qaconv_layer, gal_batch_size, prob_batch_size)
+        dist_rerank = re_ranking(dist, q_q_dist, g_g_dist)
         print('Time: %.3f seconds.' % (time.time() - start))
         rank1_rerank, mAP_rerank = evaluate_all(dist_rerank, query=query, gallery=gallery)
         score_rerank = 1 - dist_rerank
@@ -221,5 +155,5 @@ class Evaluator(object):
             rank1_tlift = rank1_rerank
             mAP_tlift = mAP_rerank
 
-        return rank1, mAP, rank1_rerank, mAP_rerank, rank1_tlift, mAP_tlift, dist.cpu().numpy(), dist_rerank, \
+        return rank1, mAP, rank1_rerank, mAP_rerank, rank1_tlift, mAP_tlift, dist, dist_rerank, \
                dist_tlift, pre_tlift_dict

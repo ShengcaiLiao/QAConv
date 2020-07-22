@@ -1,7 +1,7 @@
 """Class for the Query-Adaptive Convolution (QAConv) in the evaluation phase with matching indices
     QAConv is an effective image matching method proposed in
     Shengcai Liao and Ling Shao, "Interpretable and Generalizable Person Re-identification with Query-adaptive
-    Convolution and Temporal Lifting." In arXiv preprint, arXiv:1904.10424, 2019.
+    Convolution and Temporal Lifting." In The European Conference on Computer Vision (ECCV), 23-28 August, 2020.
     Author:
         Shengcai Liao
         scliao@ieee.org
@@ -9,7 +9,6 @@
         V1.0
         12-12-2019
     """
-
 
 import torch
 from torch.nn import Module
@@ -28,6 +27,7 @@ class QAConvMatch(Module):
         gal_score: max score of each gallery location matching over all probe locations
         index_in_prob: the corresponding maximum index in probe for the gal_score
     """
+
     def __init__(self, gal_fea, qaconv_layer):
         super(QAConvMatch, self).__init__()
         self.num_gals = gal_fea.size(0)
@@ -62,7 +62,8 @@ class QAConvMatch(Module):
 
         score = self.fc(score).view(num_probs, self.num_gals)
         score = self.logit_bn(score.unsqueeze(1)).view(num_probs, self.num_gals)
-        score = torch.sigmoid(score / 10.)
+        # scale matching scores to make them visually more recognizable
+        score = torch.sigmoid(score / 10)
 
         prob_score = prob_score.view(num_probs, self.num_gals, self.height, self.width)
         index_in_gal = index_in_gal.view(num_probs, self.num_gals, self.height, self.width)

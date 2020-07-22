@@ -41,7 +41,7 @@ class RandomSizedRectCrop(object):
                 y1 = random.randint(0, img.size[1] - h)
 
                 img = img.crop((x1, y1, x1 + w, y1 + h))
-                assert(img.size == (w, h))
+                assert (img.size == (w, h))
 
                 return img.resize((self.width, self.height), self.interpolation)
 
@@ -82,7 +82,7 @@ class RandomErasing(object):
         return img
 
 
-class RandomBlock(object):
+class RandomOcclusion(object):
     def __init__(self, min_size=0.2, max_size=1):
         self.min_size = min_size
         self.max_size = max_size

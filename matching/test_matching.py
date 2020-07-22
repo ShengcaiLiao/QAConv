@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 
 import sys
 sys.path.append('../')
+
 from reid import datasets
 from reid.models import resmap
 from reid.utils.data import transforms as T
@@ -23,7 +24,7 @@ from reid.loss.qaconv_loss import QAConvLoss
 from qaconv_match import QAConvMatch
 
 
-def get_test_data(dataname, data_dir, height, width, test_batch=2048):
+def get_test_data(dataname, data_dir, height, width, test_batch=64):
     root = osp.join(data_dir, dataname)
 
     dataset = datasets.create(dataname, root, combine_all=False)
@@ -141,18 +142,20 @@ if __name__ == '__main__':
     parser.add_argument('--width', type=int, default=128,
                         help="input width, default: 128")
     # model
-    parser.add_argument('-a', '--arch', type=str, default='resnet152',
+    parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=resmap.names())
     parser.add_argument('--final_layer', type=str, default='layer3')
     parser.add_argument('--neck', type=int, default=128,
                         help="number of bottle neck channels, default: 128")
     # test configs
-    parser.add_argument('--mem_batch_size', type=int, default=2048, help='Batch size for the convolution with the class memory in QAConvLoss. '
-                                                                         'Reduce this if you encounter a gpu memory overflow.')
-    parser.add_argument('--test_fea_batch', type=int, default=512, help="Feature extraction batch size during testing. "
-                                                                     "Reduce this if you encounter a gpu memory overflow.")
-    parser.add_argument('--test_prob_batch', type=int, default=4, help="QAConv probe batch size (as kernel) during testing. Reduce this "
-                                                                     "if you encounter a gpu memory overflow.")
+    parser.add_argument('--mem_batch_size', type=int, default=16,
+                        help='Batch size for the convolution with the class memory in QAConvLoss. '
+                             'Reduce this if you encounter a gpu memory overflow.')
+    parser.add_argument('--test_fea_batch', type=int, default=64, help="Feature extraction batch size during testing. "
+                                                                        "Reduce this if you encounter a gpu memory overflow.")
+    parser.add_argument('--test_prob_batch', type=int, default=4,
+                        help="QAConv probe batch size (as kernel) during testing. Reduce this "
+                             "if you encounter a gpu memory overflow.")
     # misc
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH',
