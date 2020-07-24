@@ -28,7 +28,7 @@ function [num_matches, img] = draw_lines(images, height, width, prob_score, inde
   num_matches = length(thr_index);
   
   if num_matches > 0  
-    figure(4);
+    figure(1);
     new_width = round(435 * height / 337);
     half = round((new_width - 2 * width) / 2);
     img = [I, J];

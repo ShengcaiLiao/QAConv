@@ -1,6 +1,5 @@
 from __future__ import print_function, absolute_import
 import argparse
-import os
 import os.path as osp
 import sys
 import string
@@ -9,7 +8,6 @@ import time
 import torch
 from torch.backends import cudnn
 import numpy as np
-import random
 import scipy.io as sio
 
 from torch import nn
@@ -93,33 +91,15 @@ def get_test_data(dataname, data_dir, height, width, test_batch=64):
     return dataset, query_loader, gallery_loader
 
 
-def set_seed(seed):
-    if seed < 0:
-        seed = random.randint(0, 10000)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    cudnn.deterministic = True
-    cudnn.benchmark = False
-    return seed
-
-
 def main(args):
+    cudnn.deterministic = False
+    cudnn.benchmark = True
+
     exp_database_dir = osp.join(args.exp_dir, string.capwords(args.dataset))
     output_dir = osp.join(exp_database_dir, args.method, args.sub_method)
     log_file = osp.join(output_dir, 'log.txt')
     # Redirect print to both console and log file
     sys.stdout = Logger(log_file)
-
-    if args.seed is None:
-        cudnn.deterministic = False
-        cudnn.benchmark = True
-    else:
-        seed = set_seed(args.seed)
-        print('Random seed of this run: %d\n' % seed)
 
     # Create data loaders
     dataset, num_classes, train_loader, query_loader, gallery_loader = \
@@ -201,8 +181,6 @@ def main(args):
             }, fpath=osp.join(output_dir, 'checkpoint.pth.tar'))
 
     # Final test
-    cudnn.deterministic = False
-    cudnn.benchmark = True
     print('Evaluate the learned model:')
     t0 = time.time()
 
@@ -220,8 +198,9 @@ def main(args):
 
         test_rank1, test_mAP, test_rank1_rerank, test_mAP_rerank, test_rank1_tlift, test_mAP_tlift, test_dist, \
         test_dist_rerank, test_dist_tlift, pre_tlift_dict = \
-            evaluator.evaluate(test_query_loader, test_gallery_loader, testset, criterion.module, args.test_gal_batch,
-                               args.test_prob_batch)
+            evaluator.evaluate(test_query_loader, test_gallery_loader, testset, criterion.module,
+                               args.test_gal_batch, args.test_prob_batch,
+                               args.tau, args.sigma, args.K, args.alpha)
 
         print('  %s: rank1=%.1f, mAP=%.1f, rank1_rerank=%.1f, mAP_rerank=%.1f,'
               ' rank1_rerank_tlift=%.1f, mAP_rerank_tlift=%.1f.\n'
@@ -270,55 +249,73 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="QAConv")
-    parser.add_argument('-s', '--seed', type=int, default=None, help="random seed for training, default: None")
     # data
-    parser.add_argument('-d', '--dataset', type=str, default='market', choices=datasets.names())
-    parser.add_argument('--combine_all', action='store_true', default=False, help="combine all data for training")
-    parser.add_argument('--testset', type=str, default='duke,market')
-    parser.add_argument('-b', '--batch-size', type=int, default=32)
-    parser.add_argument('-j', '--workers', type=int, default=8)
-    parser.add_argument('--height', type=int, default=384,
-                        help="input height, default: 384")
-    parser.add_argument('--width', type=int, default=128,
-                        help="input width, default: 128")
+    parser.add_argument('-d', '--dataset', type=str, default='market', choices=datasets.names(),
+                        help="the training dataset")
+    parser.add_argument('--combine_all', action='store_true', default=False,
+                        help="combine all data for training, default: False")
+    parser.add_argument('--testset', type=str, default='duke,market', help="the test datasets")
+    parser.add_argument('-b', '--batch-size', type=int, default=32, help="the batch size, default: 32")
+    parser.add_argument('-j', '--workers', type=int, default=8,
+                        help="the number of workers for the dataloader, default: 8")
+    parser.add_argument('--height', type=int, default=384, help="height of the input image, default: 384")
+    parser.add_argument('--width', type=int, default=128, help="width of the input image, default: 128")
     # model
-    parser.add_argument('-a', '--arch', type=str, default='resnet50', choices=resmap.names())
-    parser.add_argument('--final_layer', type=str, default='layer3')
+    parser.add_argument('-a', '--arch', type=str, default='resnet50', choices=resmap.names(),
+                        help="the backbone network, default: resnet50")
+    parser.add_argument('--final_layer', type=str, default='layer3', choices=['layer2', 'layer3', 'layer4'],
+                        help="the final layer, default: layer3")
     parser.add_argument('--neck', type=int, default=128,
-                        help="number of bottle neck channels, default: 128")
+                        help="number of channels for the final neck layer, default: 128")
+    # TLift
+    parser.add_argument('--tau', type=float, default=100,
+                        help="the interval threshold to define nearby persons in TLift, default: 100")
+    parser.add_argument('--sigma', type=float, default=200,
+                        help="the sensitivity parameter of the time difference in TLift, default: 200")
+    parser.add_argument('--K', type=int, default=10,
+                        help="parameter of the top K retrievals used to define the pivot set P in TLift, "
+                             "default: 10")
+    parser.add_argument('--alpha', type=float, default=0.2,
+                        help="regularizer for the multiplication fusion in TLift, default: 0.2")
+
+    # random occlusion
+    parser.add_argument('--min_size', type=float, default=0, help="minimal size for the random occlusion, default: 0")
+    parser.add_argument('--max_size', type=float, default=0.8,
+                        help="maximal size for the ramdom occlusion. default: 0.8")
     # optimizer
     parser.add_argument('--lr', type=float, default=0.01,
-                        help="learning rate of new parameters. For pretrained "
-                             "parameters it is 10 times smaller than this.")
-    # training configs
-    parser.add_argument('--resume', type=str, default='', metavar='PATH', help="path for resume training. "
-                                                                               "Choices: '' (new start), 'ori' (original"
-                                                                               "path), or a real path")
-    parser.add_argument('--evaluate', action='store_true', help="evaluation only")
+                        help="Learning rate of the new parameters. For pretrained "
+                             "parameters it is 10 times smaller than this. Default: 0.01.")
+    # training configurations
+    parser.add_argument('--epochs', type=int, default=60, help="the number of training epochs, default: 60")
+    parser.add_argument('--step_size', type=int, default=40, help="step size for the learning rate decay, default: 40")
     parser.add_argument('--mem_batch_size', type=int, default=16,
-                        help='Batch size for the convolution with the class memory in QAConvLoss. '
-                             'Reduce this if you encounter a gpu memory overflow.')
-    parser.add_argument('--test_fea_batch', type=int, default=64, help="Feature extraction batch size during testing. "
-                                                                       "Reduce this if you encounter a gpu memory overflow.")
+                        help="Batch size for the convolution with the class memory in QAConvLoss. Default: 16."
+                             "Reduce this if you encounter a GPU memory overflow.")
+    parser.add_argument('--resume', type=str, default='', metavar='PATH',
+                        help="Path for resuming training. Choices: '' (new start, default), "
+                             "'ori' (original path), or a real path")
+    # test configurations
+    parser.add_argument('--evaluate', action='store_true', default=False, help="evaluation only, default: False")
+    parser.add_argument('--test_fea_batch', type=int, default=64,
+                        help="Feature extraction batch size during testing. Default: 64."
+                             "Reduce this if you encounter a GPU memory overflow.")
     parser.add_argument('--test_gal_batch', type=int, default=128,
-                        help="QAConv gallery batch size during testing. Reduce this "
-                             "if you encounter a gpu memory overflow.")
+                        help="QAConv gallery batch size during testing. Default: 128."
+                             "Reduce this if you encounter a GPU memory overflow.")
     parser.add_argument('--test_prob_batch', type=int, default=4096,
-                        help="QAConv probe batch size (as kernel) during testing. Reduce this "
-                             "if you encounter a gpu memory overflow.")
-    parser.add_argument('--epochs', type=int, default=60)
-    parser.add_argument('--step_size', type=int, default=40)
-    # random block
-    parser.add_argument('--min_size', type=float, default=0)
-    parser.add_argument('--max_size', type=float, default=0.8)
+                        help="QAConv probe batch size (as kernel) during testing. Default: 4096."
+                             "Reduce this if you encounter a GPU memory overflow.")
     # misc
     working_dir = osp.dirname(osp.abspath(__file__))
-    parser.add_argument('--data-dir', type=str, metavar='PATH',
-                        default=osp.join(working_dir, 'data'))
-    parser.add_argument('--exp-dir', type=str, metavar='PATH',
-                        default=osp.join(working_dir, 'Exp'))
-    parser.add_argument('--method', type=str, default='QAConv')
-    parser.add_argument('--sub_method', type=str, default='res50_layer3')
-    parser.add_argument('--save_score', default=False, action='store_true', help="save the matching score or not")
+    parser.add_argument('--data-dir', type=str, metavar='PATH', default=osp.join(working_dir, 'data'),
+                        help="the path to the image data")
+    parser.add_argument('--exp-dir', type=str, metavar='PATH', default=osp.join(working_dir, 'Exp'),
+                        help="the path to the output directory")
+    parser.add_argument('--method', type=str, default='QAConv', help="method name for the output directory")
+    parser.add_argument('--sub_method', type=str, default='res50_layer3',
+                        help="sub method name for the output directory")
+    parser.add_argument('--save_score', default=False, action='store_true',
+                        help="save the matching score or not, default: False")
 
     main(parser.parse_args())

@@ -2,14 +2,10 @@
 % For the score matrix, probe is in rows, and gallery is in columns.
 % Tested on Octave 4.4.1.
 
-close all; clear; fprintf('\n----------------------------\n');
-
-% If you are using Octave, you need to firstly install the image package, and then load it.
-% pkg install -forge image
-pkg load image
+close all; clear; clc;
 
 % modify the followings according to the test_matching.py
-dataset = 'duke';
+dataset = 'market';
 prob_range = '0-1000';
 model_dir = 'your_model_dir/';
 score_file =[model_dir, '/', dataset, '_query_score_', prob_range, '.mat'];

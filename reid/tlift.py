@@ -6,7 +6,7 @@ import math
 def TLift(in_score, gal_cam_id, gal_time, prob_cam_id, prob_time, num_cams, tau=100, sigma=200, K=10, alpha=0.2):
     """Function for the Temporal Lifting (TLift) method
     TLift is a model-free temporal cooccurrence based score weighting method proposed in
-    Shengcai Liao and Ling Shao, "Interpretable and Generalizable Person Re-identification with Query-Adaptive
+    Shengcai Liao and Ling Shao, "Interpretable and Generalizable Person Re-Identification with Query-Adaptive
     Convolution and Temporal Lifting." In The European Conference on Computer Vision (ECCV), 23-28 August, 2020.
     Inputs:
         in_score: the similarity score of size [num_probs, num_gals] between the gallery and probe sets.
@@ -15,10 +15,10 @@ def TLift(in_score, gal_cam_id, gal_time, prob_cam_id, prob_time, num_cams, tau=
         prob_cam_id: camera index for samples in the probe set, starting from 0 and continuously numbered.
         prob_time: time stamps of samples in the probe set.
         num_cams: the number of cameras.
-        tau: the interval threshold to define nearby persons.
-        sigma: the sensitivity parameter of the time difference.
-        K: parameter of the top K retrievals used to define the pivot set P.
-        alpha: regularizer for the multiplication fusion.
+        tau: the interval threshold to define nearby persons. Default: 100.
+        sigma: the sensitivity parameter of the time difference. Default: 200.
+        K: parameter of the top K retrievals used to define the pivot set P. Default: 10.
+        alpha: regularizer for the multiplication fusion. Default: 0.2.
         All the cam_id and time inputs are 1-dim vectors, and they are in the same order corresponding to
         the first axis (probe) or second axis (gallery) of the in_score.
     Outputs:
