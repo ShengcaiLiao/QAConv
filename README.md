@@ -60,7 +60,7 @@ shengcai.liao@inceptioniai.org
 
 @inproceedings{Liao-ECCV2020-QAConv,  
   title={{Interpretable and Generalizable Person Re-Identification with Query-Adaptive Convolution and Temporal Lifting}},  
-  author={Wen, Yandong and Zhang, Kaipeng and Li, Zhifeng and Qiao, Yu},  
-  booktitle={European conference on computer vision (ECCV)},  
+  author={Shengcai Liao and Ling Shao},  
+  booktitle={European Conference on Computer Vision (ECCV)},  
   year={2020}  
 }
