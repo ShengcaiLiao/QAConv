@@ -1,7 +1,7 @@
 # QAConv
 Interpretable and Generalizable Person Re-Identification with Query-Adaptive Convolution and Temporal Lifting
 
-This PyTorch code is proposed in our paper [1]. 
+This PyTorch code is proposed in our paper [1]. A Chinese blog is available in [再见，迁移学习？可解释和泛化的行人再辨识](https://mp.weixin.qq.com/s/ukZgCsGdig0jE6jmkpBbbA).
 
 # Requirements
 - Pytorch (>1.0)
@@ -48,6 +48,8 @@ Performance (%) of QAConv with ResNet-152 under direct cross-dataset evaluation 
 
 - [QAConv_ResNet50_MSMT](https://1drv.ms/u/s!Ak6Huh3i3-MzdRN84Kd6Xrn5FXg?e=cJmCui)
 - [QAConv_ResNet152_MSMT](https://1drv.ms/u/s!Ak6Huh3i3-MzdhATpabUgh5f2aY?e=RD8tRV)
+
+The above pre-trained models can also be downloaded from [Baidu](https://pan.baidu.com/s/1fe3PliWl-mmYQAu5nhSJ8A) (access code: 52cv), thanks to [52CV](https://mp.weixin.qq.com/s/HHINgdVchZuSeTUPV8E4GQ).
 
 # Contacts
 
