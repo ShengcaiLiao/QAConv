@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR
 
 from reid import datasets
-from reid.models import resmap
+from reid.models import resmap, resmap_ibnb
 from reid.trainers import Trainer
 from reid.evaluators import Evaluator
 from reid.utils.data import transforms as T
@@ -54,19 +54,19 @@ def get_data(dataname, data_dir, height, width, batch_size, combine_all=False,
     query_loader = DataLoader(
         Preprocessor(dataset.query,
                      root=osp.join(dataset.images_dir, dataset.query_path), transform=test_transformer),
-        batch_size=test_batch, num_workers=32,
+        batch_size=test_batch, num_workers=workers,
         shuffle=False, pin_memory=True)
 
     gallery_loader = DataLoader(
         Preprocessor(dataset.gallery,
                      root=osp.join(dataset.images_dir, dataset.gallery_path), transform=test_transformer),
-        batch_size=test_batch, num_workers=32,
+        batch_size=test_batch, num_workers=workers,
         shuffle=False, pin_memory=True)
 
     return dataset, num_classes, train_loader, query_loader, gallery_loader
 
 
-def get_test_data(dataname, data_dir, height, width, test_batch=64):
+def get_test_data(dataname, data_dir, height, width, workers=8, test_batch=64):
     root = osp.join(data_dir, dataname)
 
     dataset = datasets.create(dataname, root, combine_all=False)
@@ -79,13 +79,13 @@ def get_test_data(dataname, data_dir, height, width, test_batch=64):
     query_loader = DataLoader(
         Preprocessor(dataset.query,
                      root=osp.join(dataset.images_dir, dataset.query_path), transform=test_transformer),
-        batch_size=test_batch, num_workers=32,
+        batch_size=test_batch, num_workers=workers,
         shuffle=False, pin_memory=True)
 
     gallery_loader = DataLoader(
         Preprocessor(dataset.gallery,
                      root=osp.join(dataset.images_dir, dataset.gallery_path), transform=test_transformer),
-        batch_size=test_batch, num_workers=32,
+        batch_size=test_batch, num_workers=workers,
         shuffle=False, pin_memory=True)
 
     return dataset, query_loader, gallery_loader
@@ -107,7 +107,11 @@ def main(args):
                  args.min_size, args.max_size, args.workers, args.test_fea_batch)
 
     # Create model
-    model = resmap.create(args.arch, final_layer=args.final_layer, neck=args.neck).cuda()
+    if args.ibn:
+        layers = [int(x) for x in args.ibn_layers.strip().split(',')]
+        model = resmap_ibnb.create(args.arch, final_layer=args.final_layer, ibn_layers=layers, neck=args.neck).cuda()
+    else:
+        model = resmap.create(args.arch, final_layer=args.final_layer, neck=args.neck).cuda()
     num_features = model.num_features
     # print(model)
     print('\n')
@@ -166,7 +170,7 @@ def main(args):
             loss, acc = trainer.train(epoch, train_loader, optimizer)
 
             lr = list(map(lambda group: group['lr'], optimizer.param_groups))
-            lr_scheduler.step(epoch + 1)
+            lr_scheduler.step()
             train_time = time.time() - t0
 
             print(
@@ -194,7 +198,7 @@ def main(args):
             continue
 
         testset, test_query_loader, test_gallery_loader = \
-            get_test_data(test_name, args.data_dir, args.height, args.width, args.test_fea_batch)
+            get_test_data(test_name, args.data_dir, args.height, args.width, args.workers, args.test_fea_batch)
 
         test_rank1, test_mAP, test_rank1_rerank, test_mAP_rerank, test_rank1_tlift, test_mAP_tlift, test_dist, \
         test_dist_rerank, test_dist_tlift, pre_tlift_dict = \
@@ -267,6 +271,8 @@ if __name__ == '__main__':
                         help="the final layer, default: layer3")
     parser.add_argument('--neck', type=int, default=128,
                         help="number of channels for the final neck layer, default: 128")
+    parser.add_argument('--ibn', action='store_true', default=False, help="enable ibn, default: False")
+    parser.add_argument('--ibn_layers', type=str, default='0,1,2')
     # TLift
     parser.add_argument('--tau', type=float, default=100,
                         help="the interval threshold to define nearby persons in TLift, default: 100")

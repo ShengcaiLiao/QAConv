@@ -3,13 +3,15 @@ from .duke import Duke
 from .market import Market
 from .cuhk import CUHK
 from .msmt import MSMT
+from .randperson import RandPerson
 
 __factory = {
     'market': Market,
     'duke': Duke,
     'cuhk03_np_labeled': CUHK,
     'cuhk03_np_detected': CUHK,
-    'msmt': MSMT
+    'msmt': MSMT,
+    'randperson': RandPerson
 }
 
 

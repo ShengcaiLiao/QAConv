@@ -3,7 +3,12 @@ Interpretable and Generalizable Person Re-Identification with Query-Adaptive Con
 
 This PyTorch code is proposed in our paper [1]. A Chinese blog is available in [再见，迁移学习？可解释和泛化的行人再辨识](https://mp.weixin.qq.com/s/ukZgCsGdig0jE6jmkpBbbA).
 
+# Updates
+
+* 11/26/2020: Include the IBN-Net as backbone, and the [RandPerson](https://github.com/VideoObjectSearch/RandPerson) dataset.
+
 # Requirements
+
 - Pytorch (>1.0)
 - sklearn
 
