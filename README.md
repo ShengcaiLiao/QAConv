@@ -11,6 +11,7 @@ This PyTorch code is proposed in our paper [1]. A Chinese blog is available in [
 
 - Pytorch (>1.0)
 - sklearn
+- scipy
 
 # Usage
 Download some public datasets (e.g. Market-1501, DukeMTMC-reID, CUHK03-NP, MSMT) on your own, extract them in some 
