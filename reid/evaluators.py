@@ -186,27 +186,27 @@ class Evaluator(object):
         dist = dist_t.t()  # [p, g]
         rank1, mAP = evaluate_all(dist, query=query, gallery=gallery)
 
-        num_gal = gal_fea.size(0)
-        num_prob = prob_fea.size(0)
-        num_all = num_gal + num_prob
-        dist_rerank = torch.zeros(num_all, num_all)
-        print('Compute similarity for rerank...', end='\t')
-        start = time.time()
-
-        with torch.no_grad():
-            dist_rerank[:num_prob, num_prob:] = dist
-            dist_rerank[num_prob:, :num_prob] = dist_t
-            dist_rerank[:num_prob, :num_prob] = pairwise_distance(prob_fea, prob_fea, qaconv_layer, gal_batch_size,
-                                                                  prob_batch_size)
-            dist_rerank[num_prob:, num_prob:] = pairwise_distance(gal_fea, gal_fea, qaconv_layer, gal_batch_size,
-                                                                  prob_batch_size)
-
-        dist_rerank = reranking(dist_rerank, num_prob)
-        print('Time: %.3f seconds.' % (time.time() - start))
-        rank1_rerank, mAP_rerank = evaluate_all(dist_rerank, query=query, gallery=gallery)
-        score_rerank = 1 - dist_rerank
-
         if testset.has_time_info:
+            num_gal = gal_fea.size(0)
+            num_prob = prob_fea.size(0)
+            num_all = num_gal + num_prob
+            dist_rerank = torch.zeros(num_all, num_all)
+            print('Compute similarity for rerank...', end='\t')
+            start = time.time()
+
+            with torch.no_grad():
+                dist_rerank[:num_prob, num_prob:] = dist
+                dist_rerank[num_prob:, :num_prob] = dist_t
+                dist_rerank[:num_prob, :num_prob] = pairwise_distance(prob_fea, prob_fea, qaconv_layer, gal_batch_size,
+                                                                    prob_batch_size)
+                dist_rerank[num_prob:, num_prob:] = pairwise_distance(gal_fea, gal_fea, qaconv_layer, gal_batch_size,
+                                                                    prob_batch_size)
+
+            dist_rerank = reranking(dist_rerank, num_prob)
+            print('Time: %.3f seconds.' % (time.time() - start))
+            rank1_rerank, mAP_rerank = evaluate_all(dist_rerank, query=query, gallery=gallery)
+            score_rerank = 1 - dist_rerank
+
             print('Compute TLift...', end='\t')
             start = time.time()
             pre_tlift_dict = pre_tlift(gallery, query)
@@ -218,8 +218,11 @@ class Evaluator(object):
         else:
             pre_tlift_dict = {'gal_time': 0, 'prob_time': 0}
             dist_tlift = 0
-            rank1_tlift = rank1_rerank
-            mAP_tlift = mAP_rerank
+            dist_rerank = 0
+            rank1_rerank = 0
+            mAP_rerank = 0
+            rank1_tlift = 0
+            mAP_tlift = 0
 
         return rank1, mAP, rank1_rerank, mAP_rerank, rank1_tlift, mAP_tlift, dist.cpu().numpy(), dist_rerank, \
                dist_tlift, pre_tlift_dict

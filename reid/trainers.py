@@ -37,11 +37,11 @@ class BaseTrainer(object):
             batch_time.update(time.time() - end)
             end = time.time()
 
-            print('Epoch: [{}][{}/{}]\t'
-                  'Time {:.3f} ({:.3f})\t'
-                  'Data {:.3f} ({:.3f})\t'
-                  'Loss {:.3f} ({:.3f})\t'
-                  'Prec {:.2%} ({:.2%})\t'
+            print('Epoch: [{}][{}/{}]. '
+                  'Time: {:.3f} ({:.3f}). '
+                  'Data: {:.3f} ({:.3f}). '
+                  'Loss: {:.3f} ({:.3f}). '
+                  'Prec: {:.2%} ({:.2%}).'
                   .format(epoch + 1, i + 1, len(data_loader),
                           batch_time.val, batch_time.avg,
                           data_time.val, data_time.avg,
