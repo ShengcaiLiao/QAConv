@@ -16,7 +16,7 @@ from torch.optim.lr_scheduler import StepLR
 
 from reid import datasets
 from reid.models import resmap
-from reid.pre_trainer import PreTrainer
+from reid.pretrainer import PreTrainer
 from reid.trainers import Trainer
 from reid.evaluators import Evaluator
 from reid.utils.data import transforms as T
