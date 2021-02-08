@@ -6,8 +6,8 @@
         Shengcai Liao
         scliao@ieee.org
     Version:
-        V1.1
-        July 13, 2020
+        V1.2
+        Feb. 7, 2021
     """
 
 import torch
@@ -35,16 +35,21 @@ class QAConvLoss(Module):
         self.width = width
         self.mem_batch_size = mem_batch_size
         self.register_buffer('class_memory', torch.zeros(num_classes, num_features, height, width))
+        self.register_buffer('valid_class', torch.zeros(num_classes))
         self.bn = nn.BatchNorm1d(1)
         self.fc = nn.Linear(self.height * self.width * 2, 1)
         self.logit_bn = nn.BatchNorm1d(1)
-        self.reset_parameters()
 
     def reset_running_stats(self):
         self.class_memory.zero_()
+        self.valid_class.zero_()
+        self.bn.reset_running_stats()
+        self.logit_bn.reset_running_stats()
 
     def reset_parameters(self):
-        self.reset_running_stats()
+        self.bn.reset_parameters()
+        self.fc.reset_parameters()
+        self.logit_bn.reset_parameters()
 
     def _check_input_dim(self, input):
         if input.dim() != 4:
@@ -81,12 +86,13 @@ class QAConvLoss(Module):
         loss = F.binary_cross_entropy_with_logits(score, onehot_labels, reduction='none')
         prob = score.sigmoid()
         weight = torch.pow(torch.where(onehot_labels.byte(), 1. - prob, prob), 2.)
-        loss = loss * weight
+        loss = loss * weight * self.valid_class.detach().clone().unsqueeze(0)
         loss = loss.sum(-1)
 
         with torch.no_grad():
             _, preds = torch.max(score, 1)
             acc = (preds == target).float()
             self.class_memory[target] = feature
+            self.valid_class[target] = 1.0
 
         return loss, acc

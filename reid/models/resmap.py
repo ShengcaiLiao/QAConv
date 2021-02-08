@@ -1,5 +1,17 @@
+"""Class for the ResNet and IBN-Net based feature map
+    Shengcai Liao and Ling Shao, "Interpretable and Generalizable Person Re-Identification with Query-Adaptive
+    Convolution and Temporal Lifting." In The European Conference on Computer Vision (ECCV), 23-28 August, 2020.
+    Author:
+        Shengcai Liao
+        scliao@ieee.org
+    Version:
+        V1.1
+        Feb. 7, 2021
+    """
+
 from __future__ import absolute_import
 
+import torch
 from torch import nn
 from torch.nn import functional as F
 import torchvision
@@ -17,7 +29,7 @@ class ResNet(nn.Module):
         152: torchvision.models.resnet152,
     }
 
-    def __init__(self, depth, final_layer='layer3', neck=128, pretrained=True):
+    def __init__(self, depth, ibn_type=None, final_layer='layer3', neck=128, pretrained=True):
         super(ResNet, self).__init__()
 
         self.depth = depth
@@ -25,10 +37,20 @@ class ResNet(nn.Module):
         self.neck = neck
         self.pretrained = pretrained
 
-        # Construct base (pretrained) resnet
         if depth not in ResNet.__factory:
-            raise KeyError("Unsupported depth:", depth)
-        self.base = ResNet.__factory[depth](pretrained=pretrained)
+            raise KeyError("Unsupported depth: ", depth)
+        if ibn_type is not None and depth == 152:
+            raise KeyError("Unsupported IBN-Net depth: ", depth)
+
+        if ibn_type is None:
+            # Construct base (pretrained) resnet
+            print('\nCreate ResNet model ResNet-%d.\n' % depth)
+            self.base = ResNet.__factory[depth](pretrained=pretrained)
+        else:
+            # Construct base (pretrained) IBN-Net
+            model_name = 'resnet%d_ibn_%s' % (depth, ibn_type)
+            print('\nCreate IBN-Net model %s.\n' % model_name)
+            self.base = torch.hub.load('XingangPan/IBN-Net', model_name, pretrained=pretrained)
 
         if depth < 50:
             out_planes = fea_dims_small[final_layer]

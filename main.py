@@ -15,7 +15,8 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR
 
 from reid import datasets
-from reid.models import resmap, resmap_ibnb
+from reid.models import resmap
+from reid.pretrainer import PreTrainer
 from reid.trainers import Trainer
 from reid.evaluators import Evaluator
 from reid.utils.data import transforms as T
@@ -25,20 +26,12 @@ from reid.utils.serialization import load_checkpoint, save_checkpoint
 from reid.loss.qaconv_loss import QAConvLoss
 
 
-def get_data(dataname, data_dir, height, width, batch_size, combine_all=False,
-             min_size=0., max_size=0.8, workers=8, test_batch=64):
+def get_data(dataname, data_dir, height, width, batch_size, combine_all=False, workers=8, test_batch=64):
     root = osp.join(data_dir, dataname)
 
     dataset = datasets.create(dataname, root, combine_all=combine_all)
 
     num_classes = dataset.num_train_ids
-
-    train_transformer = T.Compose([
-        T.RandomHorizontalFlip(),
-        T.Resize((height, width), interpolation=3),
-        T.RandomOcclusion(min_size, max_size),
-        T.ToTensor(),
-    ])
 
     test_transformer = T.Compose([
         T.Resize((height, width), interpolation=3),
@@ -47,7 +40,7 @@ def get_data(dataname, data_dir, height, width, batch_size, combine_all=False,
 
     train_loader = DataLoader(
         Preprocessor(dataset.train, root=osp.join(dataset.images_dir, dataset.train_path),
-                     transform=train_transformer),
+                     transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=True, pin_memory=True, drop_last=True)
 
@@ -102,19 +95,15 @@ def main(args):
     sys.stdout = Logger(log_file)
 
     # Create data loaders
-    dataset, num_classes, train_loader, query_loader, gallery_loader = \
+    dataset, num_classes, train_loader, _, _ = \
         get_data(args.dataset, args.data_dir, args.height, args.width, args.batch_size, args.combine_all,
-                 args.min_size, args.max_size, args.workers, args.test_fea_batch)
+                 args.workers, args.test_fea_batch)
 
     # Create model
-    if args.ibn:
-        layers = [int(x) for x in args.ibn_layers.strip().split(',')]
-        model = resmap_ibnb.create(args.arch, final_layer=args.final_layer, ibn_layers=layers, neck=args.neck).cuda()
-    else:
-        model = resmap.create(args.arch, final_layer=args.final_layer, neck=args.neck).cuda()
+    model = resmap.create(args.arch, ibn_type=args.ibn, final_layer=args.final_layer, neck=args.neck).cuda()
     num_features = model.num_features
     # print(model)
-    print('\n')
+    # print('\n')
 
     for arg in sys.argv:
         print('%s ' % arg, end='')
@@ -154,11 +143,16 @@ def main(args):
         criterion.load_state_dict(checkpoint['criterion'])
         optimizer.load_state_dict(checkpoint['optim'])
         start_epoch = checkpoint['epoch']
-        print("=> Start epoch {} "
-              .format(start_epoch))
+        print("=> Start epoch {} ".format(start_epoch))
+    else:
+        pre_tr = PreTrainer(model, criterion, optimizer, train_loader, args.pre_epochs, args.max_steps, args.num_trials)
+        result_file = osp.join(exp_database_dir, args.method, 'pretrain_metric.txt')
+        model, criterion, optimizer = pre_tr.train(result_file, args.method, args.sub_method)
 
     model = nn.DataParallel(model).cuda()
     criterion = nn.DataParallel(criterion).cuda()
+
+    enhance_data_aug = False
 
     if not args.evaluate:
         # Trainer
@@ -174,7 +168,7 @@ def main(args):
             train_time = time.time() - t0
 
             print(
-                '* Finished epoch %d at lr=[%g, %g, %g]. Loss: %.3f. Acc: %.2f%%. Training time: %.0f seconds.\n'
+                '* Finished epoch %d at lr=[%g, %g, %g]. Loss: %.3f. Acc: %.2f%%. Training time: %.0f seconds.                  \n'
                 % (epoch + 1, lr[0], lr[1], lr[2], loss, acc * 100, train_time))
 
             save_checkpoint({
@@ -184,12 +178,33 @@ def main(args):
                 'epoch': epoch + 1,
             }, fpath=osp.join(output_dir, 'checkpoint.pth.tar'))
 
+            if not enhance_data_aug and epoch < args.epochs - 1 and acc > args.acc_thr:
+                enhance_data_aug = True
+                print('\nAcc = %.2f%% > %.2f%%. Start to Flip and Block.\n' % (acc * 100, args.acc_thr *100))
+                
+                train_transformer = T.Compose([
+                    T.RandomHorizontalFlip(),
+                    T.Resize((args.height, args.width), interpolation=3),
+                    T.RandomOcclusion(args.min_size, args.max_size),
+                    T.ToTensor(),
+                ])
+
+                train_loader = DataLoader(
+                    Preprocessor(dataset.train, root=osp.join(dataset.images_dir, dataset.train_path),
+                                transform=train_transformer),
+                    batch_size=args.batch_size, num_workers=args.workers,
+                    shuffle=True, pin_memory=True, drop_last=True)
+
     # Final test
     print('Evaluate the learned model:')
     t0 = time.time()
 
     # Evaluator
     evaluator = Evaluator(model)
+
+    avg_rank1 = 0
+    avg_mAP = 0
+    num_testsets = 0
 
     test_names = args.testset.strip().split(',')
     for test_name in test_names:
@@ -206,18 +221,29 @@ def main(args):
                                args.test_gal_batch, args.test_prob_batch,
                                args.tau, args.sigma, args.K, args.alpha)
 
-        print('  %s: rank1=%.1f, mAP=%.1f, rank1_rerank=%.1f, mAP_rerank=%.1f,'
-              ' rank1_rerank_tlift=%.1f, mAP_rerank_tlift=%.1f.\n'
-              % (test_name, test_rank1 * 100, test_mAP * 100, test_rank1_rerank * 100, test_mAP_rerank * 100,
-                 test_rank1_tlift * 100, test_mAP_tlift * 100))
+        if test_name != args.dataset:
+            avg_rank1 += test_rank1
+            avg_mAP += test_mAP
+            num_testsets += 1
+
+        if testset.has_time_info:
+            print('  %s: rank1=%.1f, mAP=%.1f, rank1_rerank=%.1f, mAP_rerank=%.1f,'
+                ' rank1_rerank_tlift=%.1f, mAP_rerank_tlift=%.1f.\n'
+                % (test_name, test_rank1 * 100, test_mAP * 100, test_rank1_rerank * 100, test_mAP_rerank * 100,
+                    test_rank1_tlift * 100, test_mAP_tlift * 100))
+        else:
+            print('  %s: rank1=%.1f, mAP=%.1f.\n' % (test_name, test_rank1 * 100, test_mAP * 100))
 
         result_file = osp.join(exp_database_dir, args.method, test_name + '_results.txt')
         with open(result_file, 'a') as f:
             f.write('%s/%s:\n' % (args.method, args.sub_method))
-            f.write('\t%s: rank1=%.1f, mAP=%.1f, rank1_rerank=%.1f, mAP_rerank=%.1f, rank1_rerank_tlift=%.1f, '
-                    'mAP_rerank_tlift=%.1f.\n\n'
-                    % (test_name, test_rank1 * 100, test_mAP * 100, test_rank1_rerank * 100, test_mAP_rerank * 100,
-                       test_rank1_tlift * 100, test_mAP_tlift * 100))
+            if testset.has_time_info:
+                f.write('\t%s: rank1=%.1f, mAP=%.1f, rank1_rerank=%.1f, mAP_rerank=%.1f, rank1_rerank_tlift=%.1f, '
+                        'mAP_rerank_tlift=%.1f.\n\n'
+                        % (test_name, test_rank1 * 100, test_mAP * 100, test_rank1_rerank * 100, test_mAP_rerank * 100,
+                        test_rank1_tlift * 100, test_mAP_tlift * 100))
+            else:
+                f.write('\t%s: rank1=%.1f, mAP=%.1f.\n\n' % (test_name, test_rank1 * 100, test_mAP * 100))
 
         if args.save_score:
             test_gal_list = np.array([fname for fname, _, _, _ in testset.gallery], dtype=np.object)
@@ -237,6 +263,13 @@ def main(args):
                                           'gal_cams': test_gal_cams, 'prob_cams': test_prob_cams},
                         oned_as='column',
                         do_compression=True)
+
+    avg_rank1 /= num_testsets
+    avg_mAP /= num_testsets
+    result_file = osp.join(exp_database_dir, args.method, 'avg_results.txt')
+    with open(result_file, 'a') as f:
+        f.write('%s/%s:\n' % (args.method, args.sub_method))
+        f.write('\t rank1=%.1f, mAP=%.1f.\n\n' % (avg_rank1 * 100, avg_mAP * 100))
 
     test_time = time.time() - t0
     if not args.evaluate:
@@ -259,7 +292,7 @@ if __name__ == '__main__':
     parser.add_argument('--combine_all', action='store_true', default=False,
                         help="combine all data for training, default: False")
     parser.add_argument('--testset', type=str, default='duke,market', help="the test datasets")
-    parser.add_argument('-b', '--batch-size', type=int, default=32, help="the batch size, default: 32")
+    parser.add_argument('-b', '--batch-size', type=int, default=8, help="the batch size, default: 8")
     parser.add_argument('-j', '--workers', type=int, default=8,
                         help="the number of workers for the dataloader, default: 8")
     parser.add_argument('--height', type=int, default=384, help="height of the input image, default: 384")
@@ -269,10 +302,9 @@ if __name__ == '__main__':
                         help="the backbone network, default: resnet50")
     parser.add_argument('--final_layer', type=str, default='layer3', choices=['layer2', 'layer3', 'layer4'],
                         help="the final layer, default: layer3")
-    parser.add_argument('--neck', type=int, default=128,
-                        help="number of channels for the final neck layer, default: 128")
-    parser.add_argument('--ibn', action='store_true', default=False, help="enable ibn, default: False")
-    parser.add_argument('--ibn_layers', type=str, default='0,1,2')
+    parser.add_argument('--neck', type=int, default=64,
+                        help="number of channels for the final neck layer, default: 64")
+    parser.add_argument('--ibn', type=str, choices={'a', 'b'}, default=None, help="IBN type. Choose from 'a' or 'b'. Default: None")
     # TLift
     parser.add_argument('--tau', type=float, default=100,
                         help="the interval threshold to define nearby persons in TLift, default: 100")
@@ -289,18 +321,25 @@ if __name__ == '__main__':
     parser.add_argument('--max_size', type=float, default=0.8,
                         help="maximal size for the ramdom occlusion. default: 0.8")
     # optimizer
-    parser.add_argument('--lr', type=float, default=0.01,
+    parser.add_argument('--lr', type=float, default=0.005,
                         help="Learning rate of the new parameters. For pretrained "
-                             "parameters it is 10 times smaller than this. Default: 0.01.")
+                             "parameters it is 10 times smaller than this. Default: 0.005.")
     # training configurations
-    parser.add_argument('--epochs', type=int, default=60, help="the number of training epochs, default: 60")
-    parser.add_argument('--step_size', type=int, default=40, help="step size for the learning rate decay, default: 40")
+    parser.add_argument('--epochs', type=int, default=15, help="the number of training epochs, default: 15")
+    parser.add_argument('--step_size', type=int, default=10, help="step size for the learning rate decay, default: 10")
+    parser.add_argument('--acc_thr', type=float, default=0.6, 
+                        help="the accuracy threshold to start enhanced data augmentation during training, default: 0.6")
     parser.add_argument('--mem_batch_size', type=int, default=16,
                         help="Batch size for the convolution with the class memory in QAConvLoss. Default: 16."
                              "Reduce this if you encounter a GPU memory overflow.")
     parser.add_argument('--resume', type=str, default='', metavar='PATH',
                         help="Path for resuming training. Choices: '' (new start, default), "
                              "'ori' (original path), or a real path")
+    # pre-train
+    parser.add_argument('--pre_epochs', type=int, default=1, help="the number of epochs in pre-training, default: 1")
+    parser.add_argument('--max_steps', type=int, default=2000, help="the maximal pre-training steps, default: 2000")
+    parser.add_argument('--num_trials', type=int, default=10, help="the number of trials in pre-training, default: 10")
+    
     # test configurations
     parser.add_argument('--evaluate', action='store_true', default=False, help="evaluation only, default: False")
     parser.add_argument('--test_fea_batch', type=int, default=64,
