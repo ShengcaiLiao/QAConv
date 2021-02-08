@@ -5,6 +5,7 @@ This PyTorch code is proposed in our paper [1]. A Chinese blog is available in [
 
 # Updates
 
+* 2/7/2020: An important update: include a pre-training function for a better initialization, so that the [results](#Performance) are now more stable.
 * 11/26/2020: Include the IBN-Net as backbone, and the [RandPerson](https://github.com/VideoObjectSearch/RandPerson) dataset.
 
 # Requirements
@@ -27,7 +28,101 @@ python main.py --dataset market --testset duke[,market,msmt] [--data-dir ./data]
 
 # Performance
 
-Performance (%) of QAConv with ResNet-152 under direct cross-dataset evaluation without transfer learning or domain adaptation:
+* Updated performance (%) of QAConv under direct cross-dataset evaluation without transfer learning or domain adaptation:
+<table>
+  <tr>
+    <td rowspan="3">Backbone</td>
+    <td rowspan="3">Training set</td>
+    <td colspan="8" align="center">Test set</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Market</td>
+    <td colspan="2" align="center">Duke</td>
+    <td colspan="2" align="center">CUHK</td>
+    <td colspan="2" align="center">MSMT</td>
+  </tr>
+  <tr>
+    <td>Rank-1</td>
+    <td>mAP</td>
+    <td>Rank-1</td>
+    <td>mAP</td>
+    <td>Rank-1</td>
+    <td>mAP</td>
+  </tr>
+  <tr>
+    <td rowspan="3">ResNet-50</td>
+    <td>Market</td>
+    <td>-</td>
+    <td>-</td>
+    <td>49.5</td>
+    <td>29.7</td>
+    <td>10.6</td>
+    <td>9.3</td>
+    <td>26.4</td>
+    <td>8.3</td>
+  </tr>
+  <tr>
+    <td>MSMT (all)</td>
+    <td>73.8</td>
+    <td>44.1</td>
+    <td>69.7</td>
+    <td>51.8</td>
+    <td>24.6</td>
+    <td>22.8</td>
+    <td>-</td>
+    <td>-</td>
+  </tr>
+  <tr>
+    <td>RandPerson</td>
+    <td>65.6</td>
+    <td>34.8</td>
+    <td>59.4</td>
+    <td>36.1</td>
+    <td>14.3</td>
+    <td>11.0</td>
+    <td>34.3</td>
+    <td>10.7</td>
+  </tr>
+  <tr>
+    <td rowspan="3">IBN-Net-b (ResNet-50)</td>
+    <td>Market</td>
+    <td>-</td>
+    <td>-</td>
+    <td>54.0</td>
+    <td>35.0</td>
+    <td>12.4</td>
+    <td>11.3</td>
+    <td>35.6</td>
+    <td>12.2</td>
+  </tr>
+  <tr>
+    <td>MSMT (all)</td>
+    <td>76.0</td>
+    <td>47.9</td>
+    <td>71.6</td>
+    <td>53.6</td>
+    <td>27.1</td>
+    <td>25.0</td>
+    <td>-</td>
+    <td>-</td>
+    <td>
+  </tr>
+  <tr>
+    <td>RandPerson</td>
+    <td>68.0</td>
+    <td>36.8</td>
+    <td>61.7</td>
+    <td>38.9</td>
+    <td>12.9</td>
+    <td>10.8</td>
+    <td>36.6</td>
+    <td>12.1</td>
+  </tr>
+</table>
+    
+Note: results are obtained by neck=64, batch_size=8, lr=0.005, epochs=15, and step_size=10 (except for RandPerson epochs=4 and step_size=2), trained on one single GPU. By this setting the traininig and testing time is much reduced.
+
+* Performance (%) of QAConv in the ECCV paper, with ResNet-152 under direct cross-dataset evaluation:
 
 | Method | Training set | Test set | Rank-1 | mAP  |
 | :----: | :----------: | :------: | :----: | :---: |

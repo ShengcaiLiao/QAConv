@@ -269,7 +269,7 @@ def main(args):
     result_file = osp.join(exp_database_dir, args.method, 'avg_results.txt')
     with open(result_file, 'a') as f:
         f.write('%s/%s:\n' % (args.method, args.sub_method))
-        f.write('\t rank1=%.1f, mAP=%.1f.\n\n' % (avg_rank1 * 100, avg_mAP * 100))
+        f.write('\t rank1=%.2f, mAP=%.2f.\n\n' % (avg_rank1 * 100, avg_mAP * 100))
 
     test_time = time.time() - t0
     if not args.evaluate:
