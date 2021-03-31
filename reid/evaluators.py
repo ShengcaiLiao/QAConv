@@ -202,9 +202,9 @@ class Evaluator(object):
             with torch.no_grad():
                 dist_rerank[:num_prob, num_prob:] = dist
                 dist_rerank[num_prob:, :num_prob] = dist.t()
-                dist_rerank[:num_prob, :num_prob] = pairwise_distance(prob_fea, prob_fea, matcher, gal_batch_size,
+                dist_rerank[:num_prob, :num_prob] = pairwise_distance(matcher, prob_fea, prob_fea, gal_batch_size,
                                                                     prob_batch_size)
-                dist_rerank[num_prob:, num_prob:] = pairwise_distance(gal_fea, gal_fea, matcher, gal_batch_size,
+                dist_rerank[num_prob:, num_prob:] = pairwise_distance(matcher, gal_fea, gal_fea, gal_batch_size,
                                                                     prob_batch_size)
 
             dist_rerank = reranking(dist_rerank, num_prob, verbose=True)
