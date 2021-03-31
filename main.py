@@ -329,7 +329,7 @@ if __name__ == '__main__':
                         help="number of channels for the final neck layer, default: 64")
     parser.add_argument('--ibn', type=str, choices={'a', 'b'}, default=None, help="IBN type. Choose from 'a' or 'b'. Default: None")
     # TLift
-    parser.add_argument('--do_tlift', action='store_false', default=True, help="apply TLift, default: True")
+    parser.add_argument('--do_tlift', action='store_true', default=False, help="apply TLift, default: False")
     parser.add_argument('--tau', type=float, default=100,
                         help="the interval threshold to define nearby persons in TLift, default: 100")
     parser.add_argument('--sigma', type=float, default=200,
