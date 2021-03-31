@@ -6,8 +6,8 @@
         Shengcai Liao
         scliao@ieee.org
     Version:
-        V1.2
-        Feb. 7, 2021
+        V1.0
+        Mar. 31, 2021
     """
 
 import torch
@@ -16,10 +16,11 @@ from torch.nn import Module
 from torch.nn import functional as F
 
 
-class QAConvLoss(Module):
-    def __init__(self, num_classes, num_features, height, width, mem_batch_size=16):
+class ClassMemoryLoss(Module):
+    def __init__(self, matcher, num_classes, num_features, height, width, mem_batch_size=16):
         """
         Inputs:
+            matcher: a class for matching pairs of images
             num_classes: the number of classes in the training set.
             num_features: the number of feature channels in the final feature map.
             height: height of the final feature map
@@ -28,28 +29,23 @@ class QAConvLoss(Module):
             mem_batch_size >= num_classes, that is, doing convolution at once with all the class memory, the
             computation would be faster, however, in the cost of possibly large GPU memory.
         """
-        super(QAConvLoss, self).__init__()
+        super(ClassMemoryLoss, self).__init__()
         self.num_classes = num_classes
         self.num_features = num_features
         self.height = height
         self.width = width
         self.mem_batch_size = mem_batch_size
+        self.matcher = matcher
         self.register_buffer('class_memory', torch.zeros(num_classes, num_features, height, width))
         self.register_buffer('valid_class', torch.zeros(num_classes))
-        self.bn = nn.BatchNorm1d(1)
-        self.fc = nn.Linear(self.height * self.width * 2, 1)
-        self.logit_bn = nn.BatchNorm1d(1)
 
     def reset_running_stats(self):
         self.class_memory.zero_()
         self.valid_class.zero_()
-        self.bn.reset_running_stats()
-        self.logit_bn.reset_running_stats()
+        self.matcher.reset_running_stats()
 
     def reset_parameters(self):
-        self.bn.reset_parameters()
-        self.fc.reset_parameters()
-        self.logit_bn.reset_parameters()
+        self.matcher.reset_parameters()
 
     def _check_input_dim(self, input):
         if input.dim() != 4:
@@ -57,29 +53,17 @@ class QAConvLoss(Module):
 
     def forward(self, feature, target):
         self._check_input_dim(feature)
-
-        kernel = feature.permute([0, 2, 3, 1])  # [b, h, w, d]
-        kernel = kernel.reshape(-1, self.num_features, 1, 1)  # [bhw, d, 1, 1]
-
-        hw = self.height * self.width
         batch_size = target.size(0)
+        self.matcher.make_kernel(feature)
 
         if self.mem_batch_size < self.num_classes:
-            score = torch.zeros(self.num_classes, batch_size, 2 * hw, device=feature.device)
+            score = torch.zeros(batch_size, self.num_classes, device=feature.device)
             for i in range(0, self.num_classes, self.mem_batch_size):
                 j = min(i + self.mem_batch_size, self.num_classes)
-                s = F.conv2d(self.class_memory[i: j, :, :, :].detach().clone(), kernel)  # [m, bhw, h, w]
-                s = s.view(-1, batch_size, hw, hw)
-                score[i: j, :, :] = torch.cat((s.max(dim=2)[0], s.max(dim=3)[0]), dim=-1)  # [m, b, 2 * hw]
+                s = self.matcher(self.class_memory[i: j, :, :, :].detach().clone())  # [b, m]
+                score[:, i: j] = s
         else:
-            score = F.conv2d(self.class_memory.detach().clone(), kernel)  # [c, bhw, h, w]
-            score = score.view(self.num_classes, batch_size, hw, hw)
-            score = torch.cat((score.max(dim=2)[0], score.max(dim=3)[0]), dim=-1)
-
-        score = score.view(self.num_classes, 1, batch_size * 2 * hw)
-        score = self.bn(score).view(self.num_classes * batch_size, 2 * hw)
-        score = self.fc(score).view(self.num_classes, batch_size).t()
-        score = self.logit_bn(score.unsqueeze(1)).squeeze()
+            score = self.matcher(self.class_memory.detach().clone())  # [b, c]
 
         target1 = target.unsqueeze(1)
         onehot_labels = torch.zeros_like(score).scatter(1, target1, 1)

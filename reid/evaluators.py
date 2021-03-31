@@ -7,7 +7,6 @@ import numpy as np
 from .utils import to_torch
 
 from .evaluation_metrics import cmc, mean_ap
-from reid.loss.qaconv import QAConv
 from .tlift import TLift
 
 
@@ -31,13 +30,15 @@ def extract_cnn_feature(model, inputs):
     return outputs
 
 
-def extract_features(model, data_loader):
+def extract_features(model, data_loader, verbose=False):
     fea_time = 0
     data_time = 0
     features = OrderedDict()
     labels = OrderedDict()
     end = time.time()
-    print('Extract Features...', end='\t')
+
+    if verbose:
+        print('Extract Features...', end='\t')
 
     for i, (imgs, fnames, pids, _) in enumerate(data_loader):
         data_time += time.time() - end
@@ -51,23 +52,27 @@ def extract_features(model, data_loader):
         fea_time += time.time() - end
         end = time.time()
 
-    print('Feature time: {:.3f} seconds. Data time: {:.3f} seconds.'.format(fea_time, data_time))
+    if verbose:
+        print('Feature time: {:.3f} seconds. Data time: {:.3f} seconds.'.format(fea_time, data_time))
 
     return features, labels
 
 
-def pairwise_distance(gal_fea, prob_fea, qaconv_layer, gal_batch_size=128, prob_batch_size=4096):
+def pairwise_distance(matcher, prob_fea, gal_fea, gal_batch_size=4, prob_batch_size=4096):
     with torch.no_grad():
         num_gals = gal_fea.size(0)
         num_probs = prob_fea.size(0)
-        score = torch.zeros(num_gals, num_probs, device=prob_fea.device)
+        score = torch.zeros(num_probs, num_gals, device=prob_fea.device)
+        matcher.eval()
         for i in range(0, num_probs, prob_batch_size):
             j = min(i + prob_batch_size, num_probs)
-            qaconv = torch.nn.DataParallel(QAConv(prob_fea[i: j, :, :, :].cuda(), qaconv_layer)).cuda().eval()
+            matcher.make_kernel(prob_fea[i: j, :, :, :].cuda())
             for k in range(0, num_gals, gal_batch_size):
                 k2 = min(k + gal_batch_size, num_gals)
-                score[k: k2, i: j] = qaconv(gal_fea[k: k2, :, :, :].cuda())
-    return 1. - score.cpu()  # [g, p]
+                score[i: j, k: k2] = matcher(gal_fea[k: k2, :, :, :].cuda())
+        # scale matching scores to make them visually more recognizable
+        score = torch.sigmoid(score / 10)
+    return (1. - score).cpu()  # [p, g]
 
 
 def evaluate_all(distmat, query=None, gallery=None,
@@ -104,14 +109,15 @@ def evaluate_all(distmat, query=None, gallery=None,
     return cmc_scores['market1501'][0], mAP
 
 
-def reranking(dist, query_num, k1=20, k2=6, lamda_value=0.3):
+def reranking(dist, query_num, k1=20, k2=6, lamda_value=0.3, verbose=False):
     original_dist = dist.numpy()
     all_num = original_dist.shape[0]
     original_dist = np.transpose(original_dist / np.max(original_dist, axis=0))
     V = np.zeros_like(original_dist).astype(np.float16)
     initial_rank = np.argsort(original_dist).astype(np.int32)
 
-    print('starting re_ranking...', end='\t')
+    if verbose:
+        print('starting re_ranking...', end='\t')
     for i in range(all_num):
         # k-reciprocal neighbors
         forward_k_neigh_index = initial_rank[i, :k1 + 1]
@@ -170,20 +176,19 @@ class Evaluator(object):
         super(Evaluator, self).__init__()
         self.model = model
 
-    def evaluate(self, query_loader, gallery_loader, testset, qaconv_layer, gal_batch_size=128,
+    def evaluate(self, matcher, testset, query_loader, gallery_loader, gal_batch_size=4,
                  prob_batch_size=4096, tau=100, sigma=200, K=10, alpha=0.2):
         query = testset.query
         gallery = testset.gallery
-        prob_fea, _ = extract_features(self.model, query_loader)
+        prob_fea, _ = extract_features(self.model, query_loader, verbose=True)
         prob_fea = torch.cat([prob_fea[f].unsqueeze(0) for f, _, _, _ in query], 0)
-        gal_fea, _ = extract_features(self.model, gallery_loader)
+        gal_fea, _ = extract_features(self.model, gallery_loader, verbose=True)
         gal_fea = torch.cat([gal_fea[f].unsqueeze(0) for f, _, _, _ in gallery], 0)
 
         print('Compute similarity...', end='\t')
         start = time.time()
-        dist_t = pairwise_distance(gal_fea, prob_fea, qaconv_layer, gal_batch_size, prob_batch_size)
+        dist = pairwise_distance(matcher, prob_fea, gal_fea, gal_batch_size, prob_batch_size)  # [p, g]
         print('Time: %.3f seconds.' % (time.time() - start))
-        dist = dist_t.t()  # [p, g]
         rank1, mAP = evaluate_all(dist, query=query, gallery=gallery)
 
         if testset.has_time_info:
@@ -196,13 +201,13 @@ class Evaluator(object):
 
             with torch.no_grad():
                 dist_rerank[:num_prob, num_prob:] = dist
-                dist_rerank[num_prob:, :num_prob] = dist_t
-                dist_rerank[:num_prob, :num_prob] = pairwise_distance(prob_fea, prob_fea, qaconv_layer, gal_batch_size,
+                dist_rerank[num_prob:, :num_prob] = dist.t()
+                dist_rerank[:num_prob, :num_prob] = pairwise_distance(matcher, prob_fea, prob_fea, gal_batch_size,
                                                                     prob_batch_size)
-                dist_rerank[num_prob:, num_prob:] = pairwise_distance(gal_fea, gal_fea, qaconv_layer, gal_batch_size,
+                dist_rerank[num_prob:, num_prob:] = pairwise_distance(matcher, gal_fea, gal_fea, gal_batch_size,
                                                                     prob_batch_size)
 
-            dist_rerank = reranking(dist_rerank, num_prob)
+            dist_rerank = reranking(dist_rerank, num_prob, verbose=True)
             print('Time: %.3f seconds.' % (time.time() - start))
             rank1_rerank, mAP_rerank = evaluate_all(dist_rerank, query=query, gallery=gallery)
             score_rerank = 1 - dist_rerank
@@ -224,5 +229,5 @@ class Evaluator(object):
             rank1_tlift = 0
             mAP_tlift = 0
 
-        return rank1, mAP, rank1_rerank, mAP_rerank, rank1_tlift, mAP_tlift, dist.cpu().numpy(), dist_rerank, \
+        return rank1, mAP, rank1_rerank, mAP_rerank, rank1_tlift, mAP_tlift, dist.numpy(), dist_rerank, \
                dist_tlift, pre_tlift_dict
