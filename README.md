@@ -121,7 +121,7 @@ python main.py --dataset market --testset duke[,market,msmt] [--data-dir ./data]
   </tr>
 </table>
     
-Note: results are obtained by neck=64, batch_size=8, lr=0.005, epochs=15, and step_size=10 (except for RandPerson epochs=4 and step_size=2), trained on one single GPU. By this setting the traininig and testing time is much reduced.
+Note: results are obtained by neck=64, batch_size=8, lr=0.005, epochs=15, and step_size=10 (except for RandPerson epochs=4 and step_size=2), trained on one single GPU. By this setting the traininig and testing time and memory is much reduced.
 
 * Performance (%) of QAConv in the ECCV paper, with ResNet-152 under direct cross-dataset evaluation:
 

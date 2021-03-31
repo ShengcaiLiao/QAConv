@@ -23,7 +23,8 @@ from reid.utils.data import transforms as T
 from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.logging import Logger
 from reid.utils.serialization import load_checkpoint, save_checkpoint
-from reid.loss.qaconv_loss import QAConvLoss
+from reid.models.qaconv import QAConv
+from reid.loss.class_memory_loss import ClassMemoryLoss
 
 
 def get_data(dataname, data_dir, height, width, batch_size, combine_all=False, workers=8, test_batch=64):
@@ -104,17 +105,18 @@ def main(args):
     num_features = model.num_features
     # print(model)
     # print('\n')
+    
+    feamap_factor = {'layer2': 8, 'layer3': 16, 'layer4': 32}
+    hei = args.height // feamap_factor[args.final_layer]
+    wid = args.width // feamap_factor[args.final_layer]
+    matcher = QAConv(num_features, hei, wid).cuda()
 
     for arg in sys.argv:
         print('%s ' % arg, end='')
     print('\n')
 
     # Criterion
-
-    feamap_factor = {'layer2': 8, 'layer3': 16, 'layer4': 32}
-    hei = args.height // feamap_factor[args.final_layer]
-    wid = args.width // feamap_factor[args.final_layer]
-    criterion = QAConvLoss(num_classes, num_features, hei, wid, args.mem_batch_size).cuda()
+    criterion = ClassMemoryLoss(matcher, num_classes, num_features, hei, wid, args.mem_batch_size).cuda()
 
     # Optimizer
     base_param_ids = set(map(id, model.base.parameters()))
@@ -150,7 +152,7 @@ def main(args):
         model, criterion, optimizer = pre_tr.train(result_file, args.method, args.sub_method)
 
     model = nn.DataParallel(model).cuda()
-    criterion = nn.DataParallel(criterion).cuda()
+    # criterion = nn.DataParallel(criterion).cuda()
 
     enhance_data_aug = False
 
@@ -173,7 +175,7 @@ def main(args):
 
             save_checkpoint({
                 'model': model.module.state_dict(),
-                'criterion': criterion.module.state_dict(),
+                'criterion': criterion.state_dict(),
                 'optim': optimizer.state_dict(),
                 'epoch': epoch + 1,
             }, fpath=osp.join(output_dir, 'checkpoint.pth.tar'))
@@ -183,8 +185,12 @@ def main(args):
                 print('\nAcc = %.2f%% > %.2f%%. Start to Flip and Block.\n' % (acc * 100, args.acc_thr *100))
                 
                 train_transformer = T.Compose([
-                    T.RandomHorizontalFlip(),
                     T.Resize((args.height, args.width), interpolation=3),
+                    T.Pad(10),
+                    T.RandomCrop((args.height, args.width)),
+                    T.RandomHorizontalFlip(0.5),
+                    T.RandomRotation(5), 
+                    T.ColorJitter(brightness=(0.5, 2.0), contrast=(0.5, 2.0), saturation=(0.5, 2.0), hue=(-0.1, 0.1)),
                     T.RandomOcclusion(args.min_size, args.max_size),
                     T.ToTensor(),
                 ])
@@ -205,6 +211,7 @@ def main(args):
     avg_rank1 = 0
     avg_mAP = 0
     num_testsets = 0
+    results = {}
 
     test_names = args.testset.strip().split(',')
     for test_name in test_names:
@@ -215,12 +222,15 @@ def main(args):
         testset, test_query_loader, test_gallery_loader = \
             get_test_data(test_name, args.data_dir, args.height, args.width, args.workers, args.test_fea_batch)
 
+        if not args.do_tlift:
+            testset.has_time_info = False
         test_rank1, test_mAP, test_rank1_rerank, test_mAP_rerank, test_rank1_tlift, test_mAP_tlift, test_dist, \
         test_dist_rerank, test_dist_tlift, pre_tlift_dict = \
-            evaluator.evaluate(test_query_loader, test_gallery_loader, testset, criterion.module,
-                               args.test_gal_batch, args.test_prob_batch,
+            evaluator.evaluate(matcher, testset, test_query_loader, test_gallery_loader, 
+                                args.test_gal_batch, args.test_prob_batch,
                                args.tau, args.sigma, args.K, args.alpha)
 
+        results[test_name] = [test_rank1, test_mAP]
         if test_name != args.dataset:
             avg_rank1 += test_rank1
             avg_mAP += test_mAP
@@ -264,16 +274,29 @@ def main(args):
                         oned_as='column',
                         do_compression=True)
 
+    test_time = time.time() - t0
     avg_rank1 /= num_testsets
     avg_mAP /= num_testsets
-    result_file = osp.join(exp_database_dir, args.method, 'avg_results.txt')
+
+    for key in results.keys():
+        print('%s: rank1=%.1f%%, mAP=%.1f%%.' % (key, results[key][0] * 100, results[key][1] * 100))
+    print('Average: rank1=%.2f%%, mAP=%.2f%%.\n\n' % (avg_rank1 * 100, avg_mAP * 100))
+    
+    result_file = osp.join(exp_database_dir, args.method, args.sub_method[:-5] + '_avg_results.txt')
     with open(result_file, 'a') as f:
         f.write('%s/%s:\n' % (args.method, args.sub_method))
-        f.write('\t rank1=%.2f, mAP=%.2f.\n\n' % (avg_rank1 * 100, avg_mAP * 100))
+        if not args.evaluate:
+            f.write('\t Loss: %.3f, acc: %.2f%%. ' % (loss, acc * 100))
+            f.write("Train: %.0fs. " % train_time)
+        f.write("Test: %.0fs. " % test_time)
+        f.write('Rank1: %.2f%%, mAP: %.2f%%.\n' % (avg_rank1 * 100, avg_mAP * 100))
+        for key in results.keys():
+            f.write('\t %s: Rank1: %.1f%%, mAP: %.1f%%.\n' % 
+                (key, results[key][0] * 100, results[key][1] * 100))
+        f.write('\n')
 
-    test_time = time.time() - t0
     if not args.evaluate:
-        print('Finished training at epoch %d, loss %.3f, acc %.2f%%.\n'
+        print('Finished training at epoch %d, loss = %.3f, acc = %.2f%%.\n'
               % (epoch + 1, loss, acc * 100))
         print("Total training time: %.3f sec. Average training time per epoch: %.3f sec." % (
             train_time, train_time / (args.epochs - start_epoch + 1)))
@@ -306,6 +329,7 @@ if __name__ == '__main__':
                         help="number of channels for the final neck layer, default: 64")
     parser.add_argument('--ibn', type=str, choices={'a', 'b'}, default=None, help="IBN type. Choose from 'a' or 'b'. Default: None")
     # TLift
+    parser.add_argument('--do_tlift', action='store_false', default=True, help="apply TLift, default: True")
     parser.add_argument('--tau', type=float, default=100,
                         help="the interval threshold to define nearby persons in TLift, default: 100")
     parser.add_argument('--sigma', type=float, default=200,
@@ -345,8 +369,8 @@ if __name__ == '__main__':
     parser.add_argument('--test_fea_batch', type=int, default=64,
                         help="Feature extraction batch size during testing. Default: 64."
                              "Reduce this if you encounter a GPU memory overflow.")
-    parser.add_argument('--test_gal_batch', type=int, default=128,
-                        help="QAConv gallery batch size during testing. Default: 128."
+    parser.add_argument('--test_gal_batch', type=int, default=4,
+                        help="QAConv gallery batch size during testing. Default: 4."
                              "Reduce this if you encounter a GPU memory overflow.")
     parser.add_argument('--test_prob_batch', type=int, default=4096,
                         help="QAConv probe batch size (as kernel) during testing. Default: 4096."

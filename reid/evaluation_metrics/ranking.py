@@ -2,10 +2,7 @@ from __future__ import absolute_import
 from collections import defaultdict
 
 import numpy as np
-from sklearn.metrics.base import _average_binary_score
-from sklearn.metrics import precision_recall_curve, auc
-# from sklearn.metrics import average_precision_score
-
+from sklearn.metrics import average_precision_score
 
 from ..utils import to_numpy
 
@@ -16,17 +13,6 @@ def _unique_sample(ids_dict, num):
         i = np.random.choice(indices)
         mask[i] = True
     return mask
-
-
-def average_precision_score(y_true, y_score, average="macro",
-                            sample_weight=None):
-    def _binary_average_precision(y_true, y_score, sample_weight=None):
-        precision, recall, thresholds = precision_recall_curve(
-            y_true, y_score, sample_weight=sample_weight)
-        return auc(recall, precision)
-
-    return _average_binary_score(_binary_average_precision, y_true, y_score,
-                                 average, sample_weight=sample_weight)
 
 
 def cmc(distmat, query_ids=None, gallery_ids=None,
