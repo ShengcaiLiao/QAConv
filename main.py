@@ -146,7 +146,7 @@ def main(args):
         optimizer.load_state_dict(checkpoint['optim'])
         start_epoch = checkpoint['epoch']
         print("=> Start epoch {} ".format(start_epoch))
-    else:
+    elif args.pre_epochs > 0:
         pre_tr = PreTrainer(model, criterion, optimizer, train_loader, args.pre_epochs, args.max_steps, args.num_trials)
         result_file = osp.join(exp_database_dir, args.method, 'pretrain_metric.txt')
         model, criterion, optimizer = pre_tr.train(result_file, args.method, args.sub_method)
@@ -281,7 +281,7 @@ def main(args):
     for key in results.keys():
         print('%s: rank1=%.1f%%, mAP=%.1f%%.' % (key, results[key][0] * 100, results[key][1] * 100))
     print('Average: rank1=%.2f%%, mAP=%.2f%%.\n\n' % (avg_rank1 * 100, avg_mAP * 100))
-    
+
     result_file = osp.join(exp_database_dir, args.method, args.sub_method[:-5] + '_avg_results.txt')
     with open(result_file, 'a') as f:
         f.write('%s/%s:\n' % (args.method, args.sub_method))
