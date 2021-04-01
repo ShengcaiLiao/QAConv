@@ -129,9 +129,6 @@ def main(args):
 
     optimizer = torch.optim.SGD(param_groups, lr=args.lr, momentum=0.9, weight_decay=5e-4, nesterov=True)
 
-    # Decay LR by a factor of 0.1 every step_size epochs
-    lr_scheduler = StepLR(optimizer, step_size=args.step_size, gamma=0.1)
-
     # Load from checkpoint
     start_epoch = 0
 
@@ -150,6 +147,9 @@ def main(args):
         pre_tr = PreTrainer(model, criterion, optimizer, train_loader, args.pre_epochs, args.max_steps, args.num_trials)
         result_file = osp.join(exp_database_dir, args.method, 'pretrain_metric.txt')
         model, criterion, optimizer = pre_tr.train(result_file, args.method, args.sub_method)
+
+    # Decay LR by a factor of 0.1 every step_size epochs
+    lr_scheduler = StepLR(optimizer, step_size=args.step_size, gamma=0.1, last_epoch=start_epoch-1)
 
     model = nn.DataParallel(model).cuda()
     criterion = nn.DataParallel(criterion).cuda()
