@@ -152,7 +152,7 @@ def main(args):
         model, criterion, optimizer = pre_tr.train(result_file, args.method, args.sub_method)
 
     model = nn.DataParallel(model).cuda()
-    # criterion = nn.DataParallel(criterion).cuda()
+    criterion = nn.DataParallel(criterion).cuda()
 
     enhance_data_aug = False
 
@@ -175,7 +175,7 @@ def main(args):
 
             save_checkpoint({
                 'model': model.module.state_dict(),
-                'criterion': criterion.state_dict(),
+                'criterion': criterion.module.state_dict(),
                 'optim': optimizer.state_dict(),
                 'epoch': epoch + 1,
             }, fpath=osp.join(output_dir, 'checkpoint.pth.tar'))
