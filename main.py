@@ -314,7 +314,7 @@ if __name__ == '__main__':
                         help="the training dataset")
     parser.add_argument('--combine_all', action='store_true', default=False,
                         help="combine all data for training, default: False")
-    parser.add_argument('--testset', type=str, default='duke,market', help="the test datasets")
+    parser.add_argument('--testset', type=str, default='cuhk03_np_detected,msmt', help="the test datasets")
     parser.add_argument('-b', '--batch-size', type=int, default=8, help="the batch size, default: 8")
     parser.add_argument('-j', '--workers', type=int, default=8,
                         help="the number of workers for the dataloader, default: 8")
