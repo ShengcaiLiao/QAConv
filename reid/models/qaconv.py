@@ -1,4 +1,4 @@
-"""Class for the Query-Adaptive Convolution (QAConv) loss
+"""Class for the Query-Adaptive Convolution (QAConv)
     QAConv is an effective image matching method proposed in
     Shengcai Liao and Ling Shao, "Interpretable and Generalizable Person Re-Identification with Query-Adaptive
     Convolution and Temporal Lifting." In The European Conference on Computer Vision (ECCV), 23-28 August, 2020.
