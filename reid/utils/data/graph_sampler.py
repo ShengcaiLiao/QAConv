@@ -1,3 +1,13 @@
+"""Class for the graph sampler proposed in
+    Shengcai Liao and Ling Shao, "Graph Sampling Based Deep Metric Learning for Generalizable Person Re-Identification." In arXiv preprint, arXiv:2104.01546, 2021.
+    Author:
+        Shengcai Liao
+        scliao@ieee.org
+    Version:
+        V1.0
+        April 1, 2021
+    """
+
 from __future__ import absolute_import
 from collections import defaultdict
 import time

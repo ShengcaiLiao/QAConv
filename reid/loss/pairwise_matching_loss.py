@@ -1,4 +1,5 @@
 """Class for the pairwise matching loss
+    Shengcai Liao and Ling Shao, "Graph Sampling Based Deep Metric Learning for Generalizable Person Re-Identification." In arXiv preprint, arXiv:2104.01546, 2021.
     Author:
         Shengcai Liao
         scliao@ieee.org

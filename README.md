@@ -5,7 +5,7 @@ This PyTorch code is proposed in our paper [1]. A Chinese blog is available in [
 
 # Updates
 
-* 4/1/2021: QAConv 2.0: include a new sampler called Graph Sampler (GS), and remove the class memory. This version is much more efficient in learning. See the updated [results](#Performance).
+* 4/1/2021: QAConv 2.0 [2]: include a new sampler called Graph Sampler (GS), and remove the class memory. This version is much more efficient in learning. See the updated [results](#Performance).
 * 3/31/2021: QAConv 1.2: include some popular data augmentation methods, and change the ranking.py implementation to the original open-reid version, so that it is more consistent to most other implementations (e.g. open-reid, torch-reid, fast-reid).
 * 2/7/2021: QAConv 1.1: an important update, which includes a pre-training function for a better initialization, so that the [results](#Performance) are now more stable.
 * 11/26/2020: Include the IBN-Net as backbone, and the [RandPerson](https://github.com/VideoObjectSearch/RandPerson) dataset.
@@ -224,9 +224,22 @@ shengcai.liao@inceptioniai.org
 # Citation
 [1] Shengcai Liao and Ling Shao, "Interpretable and Generalizable Person Re-Identification with Query-Adaptive Convolution and Temporal Lifting." In the 16th European Conference on Computer Vision (ECCV), 23-28 August, 2020.
 
+[2] Shengcai Liao and Ling Shao, "Graph Sampling Based Deep Metric Learning for Generalizable Person Re-Identification." In arXiv preprint, arXiv:2104.01546, 2021.
+
 @inproceedings{Liao-ECCV2020-QAConv,  
   title={{Interpretable and Generalizable Person Re-Identification with Query-Adaptive Convolution and Temporal Lifting}},  
   author={Shengcai Liao and Ling Shao},  
   booktitle={European Conference on Computer Vision (ECCV)},  
   year={2020}  
+}
+
+@article{Liao-arXiv2021-GS,
+  author    = {Shengcai Liao and Ling Shao},
+  title     = {{Graph Sampling Based Deep Metric Learning for Generalizable Person Re-Identification}},
+  journal   = {CoRR},
+  volume    = {abs/2104.01546},
+  year      = {April 4, 2021},
+  url       = {http://arxiv.org/abs/2104.01546},
+  archivePrefix = {arXiv},
+  eprint    = {2104.01546}
 }
