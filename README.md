@@ -226,6 +226,7 @@ shengcai.liao@inceptioniai.org
 
 [2] Shengcai Liao and Ling Shao, "Graph Sampling Based Deep Metric Learning for Generalizable Person Re-Identification." In arXiv preprint, arXiv:2104.01546, 2021.
 
+```
 @inproceedings{Liao-ECCV2020-QAConv,  
   title={{Interpretable and Generalizable Person Re-Identification with Query-Adaptive Convolution and Temporal Lifting}},  
   author={Shengcai Liao and Ling Shao},  
@@ -243,3 +244,4 @@ shengcai.liao@inceptioniai.org
   archivePrefix = {arXiv},
   eprint    = {2104.01546}
 }
+```
