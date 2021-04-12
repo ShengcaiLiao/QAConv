@@ -59,7 +59,7 @@ class GraphSampler(Sampler):
             start = time.time()
             self.graph_index()
             if self.verbose:
-                print('\nTotal GS time for epoch %d: %.3f seconds.\n' % (self.epoch + 1, time.time() - start))
+                print('\t GraphSampler: \tTotal GS time for epoch %d: %.3f seconds.\n' % (self.epoch + 1, time.time() - start))
         self.epoch += 1
 
     def random_index(self):
