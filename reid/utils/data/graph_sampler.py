@@ -4,8 +4,8 @@
         Shengcai Liao
         scliao@ieee.org
     Version:
-        V1.0
-        April 1, 2021
+        V1.1
+        July 15, 2021
     """
 
 from __future__ import absolute_import
@@ -20,12 +20,12 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import Sampler
 
 from .preprocessor import Preprocessor
-from reid.evaluators import extract_features, pairwise_distance, reranking
+from reid.evaluators import extract_features, pairwise_distance
 
 
 class GraphSampler(Sampler):
     def __init__(self, data_source, img_path, transformer, model, matcher, batch_size=64, num_instance=4, 
-                rerank=True, pre_epochs=1, last_epoch=-1, save_path=None, verbose=False):
+                gal_batch_size=256, prob_batch_size=256, save_path=None, verbose=False):
         super(GraphSampler, self).__init__(data_source)
         self.data_source = data_source
         self.img_path = img_path
@@ -34,9 +34,8 @@ class GraphSampler(Sampler):
         self.matcher = matcher
         self.batch_size = batch_size
         self.num_instance = num_instance
-        self.rerank = rerank
-        self.pre_epochs = pre_epochs
-        self.last_epoch = last_epoch
+        self.gal_batch_size = gal_batch_size
+        self.prob_batch_size = prob_batch_size
         self.save_path = save_path
         self.verbose = verbose
 
@@ -50,38 +49,12 @@ class GraphSampler(Sampler):
 
         self.sam_index = None
         self.sam_pointer = [0] * self.num_pids
-        self.epoch = last_epoch + 1
 
     def make_index(self):
-        if self.epoch < self.pre_epochs:
-            self.random_index()
-        else:
-            start = time.time()
-            self.graph_index()
-            if self.verbose:
-                print('\t GraphSampler: \tTotal GS time for epoch %d: %.3f seconds.\n' % (self.epoch + 1, time.time() - start))
-        self.epoch += 1
-
-    def random_index(self):
-        sam_index = []
-        for pid in self.pids:
-            index = self.index_dic[pid].copy()
-            batches = len(index) // self.num_instance
-            if batches == 0:
-                more = np.random.choice(index, size=self.num_instance-len(index), replace=True)
-                index.extend(more)
-                batches = 1
-            shuffle(index)
-            if batches > self.batch_size:
-                index = index[: self.batch_size * self.num_instance]
-            else:
-                index = index[: batches * self.num_instance]
-            sam_index.extend(index)
-        sam_index = np.array(sam_index)
-        sam_index = sam_index.reshape((-1, self.num_instance))
-        np.random.shuffle(sam_index)
-        sam_index = list(sam_index.flatten())
-        self.sam_index = sam_index
+        start = time.time()
+        self.graph_index()
+        if self.verbose:
+            print('\nTotal GS time: %.3f seconds.\n' % (time.time() - start))
 
     def calc_distance(self, dataset):
         data_loader = DataLoader(
@@ -97,21 +70,10 @@ class GraphSampler(Sampler):
         if self.verbose:
             print('\t GraphSampler: \tCompute distance...', end='\t')
         start = time.time()
-        dist = pairwise_distance(self.matcher, features, features)        
+        dist = pairwise_distance(self.matcher, features, features, self.gal_batch_size, self.prob_batch_size)
+        
         if self.verbose:
             print('Time: %.3f seconds.' % (time.time() - start))
-
-        if self.rerank:
-            if self.verbose:
-                print('\t GraphSampler: \tRerank...', end='\t')
-            start = time.time()
-            with torch.no_grad():
-                dist = torch.cat((dist, dist))
-                dist = torch.cat((dist, dist), dim=1)
-                dist = reranking(dist, self.num_pids)
-                dist = torch.from_numpy(dist).cuda()
-            if self.verbose:
-                print('Time: %.3f seconds.' % (time.time() - start))
 
         return dist
 

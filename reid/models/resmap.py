@@ -5,8 +5,8 @@
         Shengcai Liao
         scliao@ieee.org
     Version:
-        V1.1
-        Feb. 7, 2021
+        V1.2
+        July 4, 2021
     """
 
 from __future__ import absolute_import
@@ -58,9 +58,8 @@ class ResNet(nn.Module):
             out_planes = fea_dims[final_layer]
 
         if neck > 0:
-            self.neck_conv = nn.Conv2d(out_planes, neck, kernel_size=3, padding=1, bias=False)
+            self.neck_conv = nn.Conv2d(out_planes, neck, kernel_size=3, padding=1)
             out_planes = neck
-            self.neck_bn = nn.BatchNorm2d(out_planes)
 
         self.num_features = out_planes
 
@@ -73,7 +72,6 @@ class ResNet(nn.Module):
 
         if self.neck > 0:
             x = self.neck_conv(x)
-            x = self.neck_bn(x)
 
         x = F.normalize(x)
 
