@@ -9,8 +9,8 @@ Performance (%) of TransMatcher under direct cross-dataset evaluation without tr
 
 <table align="center">
   <tr align="center">
-    <td rowspan="2">Method</td>
     <td rowspan="2">Training Data</td>
+    <td rowspan="2">Method</td>
     <td colspan="2">CUHK03-NP</td>
     <td colspan="2">Market-1501</td>
     <td colspan="2">MSMT17</td>
@@ -24,8 +24,8 @@ Performance (%) of TransMatcher under direct cross-dataset evaluation without tr
     <td>mAP</td>
   </tr>
   <tr align="center">
-    <td>QAConv 2.0</td>
     <td rowspan="2">Market</td>
+    <td>QAConv 2.0</td>
     <td><b>16.4</b></td>
     <td><b>15.7</b></td>
     <td>-</td>
@@ -43,8 +43,8 @@ Performance (%) of TransMatcher under direct cross-dataset evaluation without tr
     <td>18.4</td>
   </tr>
   <tr align="center">
-    <td>QAConv 2.0</td>
     <td rowspan="2">MSMT</td>
+    <td>QAConv 2.0</td>
     <td><b>20.0</b></td>
     <td><b>19.2</b></td>
     <td><b>75.1</b></td>
@@ -62,8 +62,8 @@ Performance (%) of TransMatcher under direct cross-dataset evaluation without tr
     <td>-</td>
   </tr>
   <tr align="center">
-    <td>QAConv 2.0</td>
     <td rowspan="2">MSMT (all)</td>
+    <td>QAConv 2.0</td>
     <td><b>27.2</b></td>
     <td><b>27.1</b></td>
     <td><b>80.6</b></td>
@@ -81,8 +81,8 @@ Performance (%) of TransMatcher under direct cross-dataset evaluation without tr
     <td>-</td>
   </tr>
   <tr align="center">
-    <td>QAConv 2.0</td>
     <td rowspan="2">RandPerson</td>
+    <td>QAConv 2.0</td>
     <td><b>14.8</b></td>
     <td><b>13.4</b></td>
     <td><b>74.0</b></td>

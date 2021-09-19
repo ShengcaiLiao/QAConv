@@ -5,7 +5,7 @@ This PyTorch code is proposed in our paper [1]. A Chinese blog is available in [
 
 # Updates
 
-* 9/19/2021: Include [TransMatcher](https://github.com/ShengcaiLiao/QAConv/tree/master/transmatcher), a transformer based deep image matching method based on QAConv 2.0.
+* 9/19/2021: Include [TransMatcher](https://github.com/ShengcaiLiao/QAConv/tree/master/projects/transmatcher), a transformer based deep image matching method based on QAConv 2.0.
 * 9/16/2021: QAConv 2.1: simplify graph sampling, implement the Einstein summation for QAConv, use the batch hard triplet loss, design an adaptive epoch and learning rate scheduling method, and apply the automatic mixed precision training.
 * 4/1/2021: QAConv 2.0 [2]: include a new sampler called Graph Sampler (GS), and remove the class memory. This version is much more efficient in learning. See the updated [results](#Performance).
 * 3/31/2021: QAConv 1.2: include some popular data augmentation methods, and change the ranking.py implementation to the original open-reid version, so that it is more consistent to most other implementations (e.g. open-reid, torch-reid, fast-reid).
