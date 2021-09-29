@@ -108,17 +108,13 @@ Inception Institute of Artificial Intelligence (IIAI)
 shengcai.liao@inceptioniai.org
 
 # Citation
-[1] Shengcai Liao and Ling Shao, "Transformer-Based Deep Image Matching for Generalizable Person Re-identification." In arXiv preprint, arXiv:2105.14432, 2021.
+[1] Shengcai Liao and Ling Shao, "Transformer-Based Deep Image Matching for Generalizable Person Re-identification." In Neural Information Processing Systems (NeurIPS), 2021.
 
 ```
-@article{Liao-arXiv2021-TransMatcher,
+@article{Liao-NeurIPS2021-TransMatcher,
   author    = {Shengcai Liao and Ling Shao},
   title     = {{Transformer-Based Deep Image Matching for Generalizable Person Re-identification}},
-  journal   = {CoRR},
-  volume    = {abs/2105.14432},
-  year      = {May 30, 2021},
-  url       = {http://arxiv.org/abs/2105.14432},
-  archivePrefix = {arXiv},
-  eprint    = {2105.14432}
+  booktitle = {Neural Information Processing Systems (NeurIPS)},  
+  year={2021}
 }
 ```

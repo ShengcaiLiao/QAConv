@@ -377,8 +377,8 @@ if __name__ == '__main__':
                         help="the path to the image data")
     parser.add_argument('--exp-dir', type=str, metavar='PATH', default=osp.join(working_dir, 'Exp'),
                         help="the path to the output directory")
-    parser.add_argument('--method', type=str, default='QAConv50_IBNb_GS', help="method name for the output directory")
-    parser.add_argument('--sub_method', type=str, default='res50-layer3-f64_pre1_clip512_lr3_bs64-k4_ep15s10',
+    parser.add_argument('--method', type=str, default='QAConv_GS', help="method name for the output directory")
+    parser.add_argument('--sub_method', type=str, default='res50-ibnb-layer3',
                         help="sub method name for the output directory")
     parser.add_argument('--save_score', default=False, action='store_true',
                         help="save the matching score or not, default: False")
