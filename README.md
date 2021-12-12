@@ -12,6 +12,20 @@ This PyTorch code is proposed in our paper [1]. A Chinese blog is available in [
 * 2/7/2021: QAConv 1.1: an important update, which includes a pre-training function for a better initialization, so that the [results](#Performance) are now more stable.
 * 11/26/2020: Include the IBN-Net as backbone, and the [RandPerson](https://github.com/VideoObjectSearch/RandPerson) dataset.
 
+# Illustrations
+
+![QAConv](image/QAConv.png)
+Fig. 1. Illustration of the proposed query-adaptive convolution (QAConv).
+
+![QAConv-Link](image/qaconv-link.png)
+Fig. 2. Examples of local correspondences obtained by QAConv.
+
+![QAConv-Arch](image/arch.png)
+Fig. 3. QAConv network architecture in training.
+
+![TLift](image/TLift.png)
+Fig. 4. Illustration of the proposed temporal lifting (TLift).
+
 # Requirements
 
 - Pytorch (>1.0)
