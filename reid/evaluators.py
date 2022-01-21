@@ -201,8 +201,6 @@ class Evaluator(object):
         rank1, mAP = evaluate_all(dist, query=query, gallery=gallery)
 
         if testset.has_time_info:
-            num_gal = gal_fea.size(0)
-            num_prob = prob_fea.size(0)
             num_all = num_gal + num_prob
             dist_rerank = torch.zeros(num_all, num_all)
             print('Compute similarity for rerank...', end='\t')
