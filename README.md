@@ -1,7 +1,7 @@
 # QAConv
 Interpretable and Generalizable Person Re-Identification with Query-Adaptive Convolution and Temporal Lifting
 
-This PyTorch code is proposed in our paper [1]. A Chinese blog is available in [再见，迁移学习？可解释和泛化的行人再辨识](https://mp.weixin.qq.com/s/ukZgCsGdig0jE6jmkpBbbA).
+This is the official PyTorch code for the QAConv method proposed in our paper [1]. A Chinese blog is available in [再见，迁移学习？可解释和泛化的行人再辨识](https://mp.weixin.qq.com/s/ukZgCsGdig0jE6jmkpBbbA).
 
 # Updates
 
