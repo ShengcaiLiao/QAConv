@@ -5,6 +5,7 @@ This PyTorch code is proposed in our paper [1]. A Chinese blog is available in [
 
 # Updates
 
+* 3/3/2022: The Graph Sampling work (QAConv-GS/QAConv 2.1) has been accepted by CVPR 2022.
 * 9/19/2021: Include [TransMatcher](https://github.com/ShengcaiLiao/QAConv/tree/master/projects/transmatcher), a transformer based deep image matching method based on QAConv 2.0.
 * 9/16/2021: QAConv 2.1: simplify graph sampling, implement the Einstein summation for QAConv, use the batch hard triplet loss, design an adaptive epoch and learning rate scheduling method, and apply the automatic mixed precision training.
 * 4/1/2021: QAConv 2.0 [2]: include a new sampler called Graph Sampler (GS), and remove the class memory. This version is much more efficient in learning. See the updated [results](#Performance).
@@ -144,7 +145,7 @@ shengcai.liao@inceptioniai.org
 # Citation
 [1] Shengcai Liao and Ling Shao, "Interpretable and Generalizable Person Re-Identification with Query-Adaptive Convolution and Temporal Lifting." In the 16th European Conference on Computer Vision (ECCV), 23-28 August, 2020.
 
-[2] Shengcai Liao and Ling Shao, "Graph Sampling Based Deep Metric Learning for Generalizable Person Re-Identification." In arXiv preprint, arXiv:2104.01546, 2021.
+[2] Shengcai Liao and Ling Shao, "Graph Sampling Based Deep Metric Learning for Generalizable Person Re-Identification." In CVF/IEEE Conference on Computer Vision and Pattern Recognition, 2022.
 
 ```
 @inproceedings{Liao-ECCV2020-QAConv,  
@@ -154,14 +155,11 @@ shengcai.liao@inceptioniai.org
   year={2020}  
 }
 
-@article{Liao-arXiv2021-GS,
+@article{Liao-CVPR2022-GraphSampling,
   author    = {Shengcai Liao and Ling Shao},
   title     = {{Graph Sampling Based Deep Metric Learning for Generalizable Person Re-Identification}},
-  journal   = {CoRR},
-  volume    = {abs/2104.01546},
-  year      = {April 4, 2021},
-  url       = {http://arxiv.org/abs/2104.01546},
-  archivePrefix = {arXiv},
-  eprint    = {2104.01546}
+  booktitle = {CVF/IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  month     = {June},
+  year      = {2022}
 }
 ```
