@@ -126,13 +126,13 @@ Performance (%) of QAConv 2.1 under direct cross-dataset evaluation without tran
   <tr align="center">
     <td>RandPerson</td>
     <td>QAConv 2.1</td>
-    <td>2.33</td>
-    <td>17.9</td>
+    <td>2.0</td>
+    <td>18.4</td>
     <td>16.1</td>
-    <td>75.9</td>
-    <td>46.3</td>
-    <td>44.1</td>
-    <td>15.2</td>
+    <td>76.7</td>
+    <td>46.7</td>
+    <td>45.1</td>
+    <td>15.5</td>
   </tr>
 </table>
 
