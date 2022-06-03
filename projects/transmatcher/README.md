@@ -1,11 +1,18 @@
 # TransMatcher
-[Transformer-Based Deep Image Matching for Generalizable Person Re-identification](https://arxiv.org/abs/2105.14432)
+[TransMatcher: Deep Image Matching Through Transformers for Generalizable Person Re-identification](https://arxiv.org/abs/2105.14432)
 
-This PyTorch code is proposed in our paper [1]. It is based on the QAConv 2.0 code, and the requrements and usage are quite similar.
+<h3>
 
-![Thumbnail](TransMatcher_Thumbnail.png)
+This project is transferred to https://github.com/ShengcaiLiao/TransMatcher. It will no longer be maintained here. For updates and issues, please visit the new independent repository of [TransMatcher](https://github.com/ShengcaiLiao/TransMatcher).
 
-For further details, please read our [paper](https://arxiv.org/abs/2105.14432), and a poster [here](TransMatcher_Poster.png).
+</h3>
+
+
+This is the PyTorch code for the TransMatcher proposed in our paper [1]. 
+
+<img src="TransMatcher_Thumbnail.png" width=600>
+
+It is based on the [QAConv](https://github.com/ShengcaiLiao/QAConv) 2.0 code, and the requirements and usage are quite similar. For further details, please read our [paper](https://arxiv.org/abs/2105.14432), and a poster [here](TransMatcher_Poster.png).
 
 # Performance
 

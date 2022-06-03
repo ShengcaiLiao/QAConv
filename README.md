@@ -1,7 +1,8 @@
 # QAConv
-Interpretable and Generalizable Person Re-Identification with Query-Adaptive Convolution and Temporal Lifting
 
-This is the official PyTorch code for the QAConv method proposed in our paper [1]. A Chinese blog is available in [再见，迁移学习？可解释和泛化的行人再辨识](https://mp.weixin.qq.com/s/ukZgCsGdig0jE6jmkpBbbA).
+[Interpretable and Generalizable Person Re-Identification with Query-Adaptive Convolution and Temporal Lifting](https://arxiv.org/abs/1904.10424)
+
+This is the official PyTorch code for the [QAConv](https://arxiv.org/abs/1904.10424) method proposed in our paper [1] and the QAConv-GS with [Graph Sampling](https://arxiv.org/abs/2104.01546) proposed in our paper [2]. A Chinese blog is available in [再见，迁移学习？可解释和泛化的行人再辨识](https://mp.weixin.qq.com/s/ukZgCsGdig0jE6jmkpBbbA).
 
 # Updates
 
@@ -35,8 +36,7 @@ Fig. 4. Illustration of the proposed temporal lifting (TLift).
 - scipy
 
 # Usage
-Download some public datasets (e.g. Market-1501, CUHK03-NP, MSMT) on your own, extract them in some 
-folder, and then run the followings.
+Download some public datasets (e.g. Market-1501, CUHK03-NP, MSMT) on your own, extract them in some folder, and then run the followings.
 
 ## Training and test
 `python main.py --dataset market --testset cuhk03_np_detected[,msmt] [--data-dir ./data] [--exp-dir ./Exp]`
