@@ -52,7 +52,7 @@ With the GS sampler and pairwise matching loss, run the following:
 
 # Performance
 
-Performance (%) of QAConv 2.1 under direct cross-dataset evaluation without transfer learning or domain adaptation:
+Performance (%) of QAConv (QAConv 1.0) and QAConv-GS (QAConv 2.1) under direct cross-dataset evaluation without transfer learning or domain adaptation:
 
 <table align="center">
   <tr align="center">
