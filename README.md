@@ -1,10 +1,13 @@
 # QAConv
-Interpretable and Generalizable Person Re-Identification with Query-Adaptive Convolution and Temporal Lifting
 
-This PyTorch code is proposed in our paper [1]. A Chinese blog is available in [再见，迁移学习？可解释和泛化的行人再辨识](https://mp.weixin.qq.com/s/ukZgCsGdig0jE6jmkpBbbA).
+[Interpretable and Generalizable Person Re-Identification with Query-Adaptive Convolution and Temporal Lifting](https://arxiv.org/abs/1904.10424)
+
+This is the official PyTorch code for the [QAConv](https://arxiv.org/abs/1904.10424) method proposed in our paper [1] and the QAConv-GS with [Graph Sampling](https://arxiv.org/abs/2104.01546) proposed in our paper [2]. A Chinese blog is available in [再见，迁移学习？可解释和泛化的行人再辨识](https://mp.weixin.qq.com/s/ukZgCsGdig0jE6jmkpBbbA).
 
 # Updates
 
+* 3/3/2022: The Graph Sampling work (QAConv-GS/QAConv 2.1) has been accepted by CVPR 2022.
+* 9/29/2022: [TransMatcher](https://arxiv.org/abs/2105.14432) has been accepted by NeurIPS 2021.
 * 9/19/2021: Include [TransMatcher](https://github.com/ShengcaiLiao/QAConv/tree/master/projects/transmatcher), a transformer based deep image matching method based on QAConv 2.0.
 * 9/16/2021: QAConv 2.1: simplify graph sampling, implement the Einstein summation for QAConv, use the batch hard triplet loss, design an adaptive epoch and learning rate scheduling method, and apply the automatic mixed precision training.
 * 4/1/2021: QAConv 2.0 [2]: include a new sampler called Graph Sampler (GS), and remove the class memory. This version is much more efficient in learning. See the updated [results](#Performance).
@@ -33,8 +36,7 @@ Fig. 4. Illustration of the proposed temporal lifting (TLift).
 - scipy
 
 # Usage
-Download some public datasets (e.g. Market-1501, CUHK03-NP, MSMT) on your own, extract them in some 
-folder, and then run the followings.
+Download some public datasets (e.g. Market-1501, CUHK03-NP, MSMT) on your own, extract them in some folder, and then run the followings.
 
 ## Training and test
 `python main.py --dataset market --testset cuhk03_np_detected[,msmt] [--data-dir ./data] [--exp-dir ./Exp]`
@@ -50,7 +52,7 @@ With the GS sampler and pairwise matching loss, run the following:
 
 # Performance
 
-Performance (%) of QAConv 2.1 under direct cross-dataset evaluation without transfer learning or domain adaptation:
+Performance (%) of QAConv (QAConv 1.0) and QAConv-GS (QAConv 2.1) under direct cross-dataset evaluation without transfer learning or domain adaptation:
 
 <table align="center">
   <tr align="center">
@@ -125,13 +127,13 @@ Performance (%) of QAConv 2.1 under direct cross-dataset evaluation without tran
   <tr align="center">
     <td>RandPerson</td>
     <td>QAConv 2.1</td>
-    <td>2.33</td>
-    <td>17.9</td>
+    <td>2.0</td>
+    <td>18.4</td>
     <td>16.1</td>
-    <td>75.9</td>
-    <td>46.3</td>
-    <td>44.1</td>
-    <td>15.2</td>
+    <td>76.7</td>
+    <td>46.7</td>
+    <td>45.1</td>
+    <td>15.5</td>
   </tr>
 </table>
 
@@ -144,7 +146,7 @@ shengcai.liao@inceptioniai.org
 # Citation
 [1] Shengcai Liao and Ling Shao, "Interpretable and Generalizable Person Re-Identification with Query-Adaptive Convolution and Temporal Lifting." In the 16th European Conference on Computer Vision (ECCV), 23-28 August, 2020.
 
-[2] Shengcai Liao and Ling Shao, "Graph Sampling Based Deep Metric Learning for Generalizable Person Re-Identification." In arXiv preprint, arXiv:2104.01546, 2021.
+[2] Shengcai Liao and Ling Shao, "Graph Sampling Based Deep Metric Learning for Generalizable Person Re-Identification." In CVF/IEEE Conference on Computer Vision and Pattern Recognition, 2022.
 
 ```
 @inproceedings{Liao-ECCV2020-QAConv,  
@@ -154,14 +156,11 @@ shengcai.liao@inceptioniai.org
   year={2020}  
 }
 
-@article{Liao-arXiv2021-GS,
+@article{Liao-CVPR2022-GraphSampling,
   author    = {Shengcai Liao and Ling Shao},
   title     = {{Graph Sampling Based Deep Metric Learning for Generalizable Person Re-Identification}},
-  journal   = {CoRR},
-  volume    = {abs/2104.01546},
-  year      = {April 4, 2021},
-  url       = {http://arxiv.org/abs/2104.01546},
-  archivePrefix = {arXiv},
-  eprint    = {2104.01546}
+  booktitle = {CVF/IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  month     = {June},
+  year      = {2022}
 }
 ```
