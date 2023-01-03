@@ -6,6 +6,7 @@ This is the official PyTorch code for the [QAConv](https://arxiv.org/abs/1904.10
 
 # Updates
 
+* 1/3/2023: Improved testing efficiency by using half precision, and optimized memory usage in testing. Included ClonedPerson, and removed DukeMTMC-reID.
 * 3/3/2022: The Graph Sampling work (QAConv-GS/QAConv 2.1) has been accepted by CVPR 2022.
 * 9/29/2022: [TransMatcher](https://arxiv.org/abs/2105.14432) has been accepted by NeurIPS 2021.
 * 9/19/2021: Include [TransMatcher](https://github.com/ShengcaiLiao/QAConv/tree/master/projects/transmatcher), a transformer based deep image matching method based on QAConv 2.0.
@@ -36,19 +37,17 @@ Fig. 4. Illustration of the proposed temporal lifting (TLift).
 - scipy
 
 # Usage
-Download some public datasets (e.g. Market-1501, CUHK03-NP, MSMT) on your own, extract them in some folder, and then run the followings.
+Download some public datasets (e.g. Market-1501, CUHK03-NP, MSMT, RandPerson, ClonedPerson) on your own, extract them in some folder, and then run the followings.
 
 ## Training and test
 `python main.py --dataset market --testset cuhk03_np_detected[,msmt] [--data-dir ./data] [--exp-dir ./Exp]`
 
 For more options, run "python main.py --help". For example, if you want to use the ResNet-152 as backbone, specify "-a resnet152". If you want to train on the whole dataset (as done in our paper for the MSMT17), specify "--combine_all".
 
-With the GS sampler and pairwise matching loss, run the following:
-
-``python main_gs.py --dataset market --testset cuhk03_np_detected[,msmt] [--data-dir ./data] [--exp-dir ./Exp]``
+The main file is updated with the QAConv 2.1 version, that is the CVPR 2022 version with the Graph Sampler and sole triplet loss. For other earlier versions, please check [Releases](https://github.com/ShengcaiLiao/QAConv/releases).
 
 ## Test only
-`python main.py --dataset market --testset duke[,market,msmt] [--data-dir ./data] [--exp-dir ./Exp] --evaluate`
+`python main.py --dataset market --testset cuhk03_np_detected[,market,msmt] [--data-dir ./data] [--exp-dir ./Exp] --evaluate`
 
 # Performance
 
