@@ -81,7 +81,7 @@ def get_test_data(dataname, data_dir, height, width, workers=8, test_batch=64):
     dataset = datasets.create(dataname, root, combine_all=False)
 
     test_transformer = T.Compose([
-        T.Resize((height, width), interpolation=3),
+        T.Resize((height, width), interpolation=InterpolationMode.BICUBIC),
         T.ToTensor(),
     ])
 
@@ -198,12 +198,17 @@ def main(args):
                 '* Finished epoch %d at lr=[%g, %g, %g]. Loss: %.3f. Acc: %.2f%%. Training time: %.0f seconds.                  \n'
                 % (epoch1, lr[0], lr[1], lr[2], loss, acc * 100, train_time))
 
-            if (not lr_stepped) and (base_loss is not None) and (loss < base_loss * args.step_factor):
-                lr_stepped = True
-                final_epochs = min(args.max_epochs, epoch1 + epoch1 // 2)
-                print('Decay the learning rate by a factor of 0.1. Final epochs: %d.\n' % final_epochs)
-                for group in optimizer.param_groups:
-                    group['lr'] *= 0.1
+            if not lr_stepped:
+                if args.step_factor >= 1:  # for fixed schedule
+                    if epoch1 == args.step_factor:
+                        lr_stepped = True
+                elif (base_loss is not None) and (loss < base_loss * args.step_factor):  # for dynamic schedule
+                    lr_stepped = True
+                    final_epochs = min(args.max_epochs, epoch1 + epoch1 // 2)
+                if lr_stepped:
+                    print('Decay the learning rate by a factor of 0.1. Final epochs: %d.\n' % final_epochs)
+                    for group in optimizer.param_groups:
+                        group['lr'] *= 0.1
 
             save_checkpoint({
                 'model': model.module.state_dict(),
@@ -232,11 +237,12 @@ def main(args):
             f.write('\n')
 
     # Final test
-    print('Evaluate the learned model:')
+    print('\nEvaluate the learned model:')
     t0 = time.time()
 
     # Evaluator
-    evaluator = Evaluator(model)
+    evaluator = Evaluator(model, matcher, args.test_gal_batch, args.test_prob_batch, 
+            args.tau, args.sigma, args.K, args.alpha)
 
     test_names = args.testset.strip().split(',')
     for test_name in test_names:
@@ -253,9 +259,7 @@ def main(args):
 
         test_rank1, test_mAP, test_rank1_rerank, test_mAP_rerank, test_rank1_tlift, test_mAP_tlift, test_dist, \
         test_dist_rerank, test_dist_tlift, pre_tlift_dict = \
-            evaluator.evaluate(matcher, testset, test_query_loader, test_gallery_loader, 
-                                args.test_gal_batch, args.test_prob_batch,
-                               args.tau, args.sigma, args.K, args.alpha)
+            evaluator.evaluate(testset, test_query_loader, test_gallery_loader)
 
         test_time = time.time() - t1
 
@@ -365,12 +369,13 @@ if __name__ == '__main__':
     parser.add_argument('--test_fea_batch', type=int, default=256,
                         help="Feature extraction batch size during testing. Default: 256."
                              "Reduce this if you encounter a GPU memory overflow.")
-    parser.add_argument('--test_gal_batch', type=int, default=256,
-                        help="QAConv gallery batch size during testing. Default: 256."
+    parser.add_argument('--test_gal_batch', type=int, default=128,
+                        help="QAConv gallery batch size during testing. Default: 128."
                              "Reduce this if you encounter a GPU memory overflow.")
-    parser.add_argument('--test_prob_batch', type=int, default=256,
-                        help="QAConv probe batch size (as kernel) during testing. Default: 256."
+    parser.add_argument('--test_prob_batch', type=int, default=128,
+                        help="QAConv probe batch size (as kernel) during testing. Default: 128."
                              "Reduce this if you encounter a GPU memory overflow.")
+    
     # misc
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH', default=osp.join(working_dir, 'data'),

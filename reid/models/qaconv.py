@@ -6,7 +6,7 @@
         Shengcai Liao
         scliao@ieee.org
     Version:
-        V1.3
+        V1.3.1
         July 1, 2021
     """
 
@@ -30,7 +30,6 @@ class QAConv(Module):
         self.bn = nn.BatchNorm1d(1)
         self.fc = nn.Linear(self.height * self.width, 1)
         self.logit_bn = nn.BatchNorm1d(1)
-        self.kernel = None
         self.reset_parameters()
 
     def reset_running_stats(self):
@@ -47,23 +46,20 @@ class QAConv(Module):
         if input.dim() != 4:
             raise ValueError('expected 4D input (got {}D input)'.format(input.dim()))
 
-    def make_kernel(self, features): # probe features
-        self.kernel = features
-
-    def forward(self, features):  # gallery features
-        self._check_input_dim(features)
-
+    def forward(self, prob_fea, gal_fea):
         hw = self.height * self.width
-        batch_size = features.size(0)
-        score = torch.einsum('g c h w, p c y x -> g p y x h w', features, self.kernel)
-        score = score.view(batch_size, -1, hw, hw)
+        prob_size = prob_fea.size(0)
+        gal_size = gal_fea.size(0)
+        prob_fea = prob_fea.view(prob_size, self.num_features, hw)
+        gal_fea = gal_fea.view(gal_size, self.num_features, hw)
+        score = torch.einsum('p c s, g c r -> p g r s', prob_fea, gal_fea)
         score = torch.cat((score.max(dim=2)[0], score.max(dim=3)[0]), dim=-1)
 
         score = score.view(-1, 1, hw)
         score = self.bn(score).view(-1, hw)
         score = self.fc(score)
-        score = score.view(-1, 2).sum(dim=-1, keepdim=True)
+        score = score.view(-1, 2).sum(dim=1, keepdim=True)
         score = self.logit_bn(score)
-        score = score.view(batch_size, -1).t() # [p, g]
+        score = score.view(prob_size, gal_size)
 
         return score

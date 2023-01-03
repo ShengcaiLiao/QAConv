@@ -4,8 +4,8 @@
         Shengcai Liao
         scliao@ieee.org
     Version:
-        V1.0
-        April 1, 2021
+        V1.1
+        Jan 3, 2023
     """
 
 import torch
@@ -37,9 +37,9 @@ class TripletLoss(Module):
 
     def forward(self, feature, target):
         self._check_input_dim(feature)
-        self.matcher.make_kernel(feature)
+        # self.matcher.make_kernel(feature)
 
-        score = self.matcher(feature)  # [b, b]
+        score = self.matcher(feature, feature)  # [b, b]
 
         target1 = target.unsqueeze(1)
         mask = (target1 == target1.t())

@@ -4,8 +4,8 @@
         Shengcai Liao
         scliao@ieee.org
     Version:
-        V1.1
-        July 15, 2021
+        V1.2
+        Jan 3, 2023
     """
 
 from __future__ import absolute_import
@@ -14,6 +14,7 @@ import time
 from random import shuffle
 import numpy as np
 import os
+from copy import deepcopy
 
 import torch
 from torch.utils.data import DataLoader
@@ -59,18 +60,22 @@ class GraphSampler(Sampler):
     def calc_distance(self, dataset):
         data_loader = DataLoader(
             Preprocessor(dataset, self.img_path, transform=self.transformer),
-            batch_size=64, num_workers=8,
+            batch_size=256, num_workers=8,
             shuffle=False, pin_memory=True)
 
         if self.verbose:
             print('\t GraphSampler: ', end='\t')
-        features, _ = extract_features(self.model, data_loader, self.verbose)
-        features = torch.cat([features[fname].unsqueeze(0) for fname, _, _, _ in dataset], 0)
+        model = deepcopy(self.model).half().cuda().eval()
+        num_features = self.matcher.num_features
+        fea_height = self.matcher.height
+        fea_width = self.matcher.width
+        features = extract_features(model, data_loader, num_features, fea_height, fea_width, self.verbose)
 
         if self.verbose:
             print('\t GraphSampler: \tCompute distance...', end='\t')
         start = time.time()
-        dist = pairwise_distance(self.matcher, features, features, self.gal_batch_size, self.prob_batch_size)
+        matcher = deepcopy(self.matcher).half().cuda().eval()
+        dist = pairwise_distance(matcher, features, features, self.gal_batch_size, self.prob_batch_size, self.verbose)
         
         if self.verbose:
             print('Time: %.3f seconds.' % (time.time() - start))

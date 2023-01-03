@@ -6,8 +6,8 @@
         Shengcai Liao
         scliao@ieee.org
     Version:
-        V1.0
-        Mar. 31, 2021
+        V1.1
+        Jan 3, 2023
     """
 
 import torch
@@ -54,16 +54,16 @@ class ClassMemoryLoss(Module):
     def forward(self, feature, target):
         self._check_input_dim(feature)
         batch_size = target.size(0)
-        self.matcher.make_kernel(feature)
+        # self.matcher.make_kernel(feature)
 
         if self.mem_batch_size < self.num_classes:
             score = torch.zeros(batch_size, self.num_classes, device=feature.device)
             for i in range(0, self.num_classes, self.mem_batch_size):
                 j = min(i + self.mem_batch_size, self.num_classes)
-                s = self.matcher(self.class_memory[i: j, :, :, :].detach().clone())  # [b, m]
+                s = self.matcher(feature, self.class_memory[i: j, :, :, :].detach().clone())  # [b, m]
                 score[:, i: j] = s
         else:
-            score = self.matcher(self.class_memory.detach().clone())  # [b, c]
+            score = self.matcher(feature, self.class_memory.detach().clone())  # [b, c]
 
         target1 = target.unsqueeze(1)
         onehot_labels = torch.zeros_like(score).scatter(1, target1, 1)

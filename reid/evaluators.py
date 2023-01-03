@@ -1,7 +1,6 @@
 from __future__ import print_function, absolute_import
 import sys
 import time
-from collections import OrderedDict
 
 import torch
 import numpy as np
@@ -22,31 +21,29 @@ def pre_tlift(gallery, query):
 
 
 def extract_cnn_feature(model, inputs):
-    model = model.cuda().eval()
-    with torch.no_grad():
-        outputs = model(inputs)
-    outputs = outputs.cpu()
+    with torch.inference_mode():
+        outputs = model(inputs.half().cuda())
     return outputs
 
 
-def extract_features(model, data_loader, verbose=False):
+def extract_features(model, data_loader, num_features, fea_height, fea_width, verbose=False):
     fea_time = 0
     data_time = 0
-    features = OrderedDict()
-    labels = OrderedDict()
     end = time.time()
 
     if verbose:
         print('Extract Features...', end='\t')
 
-    for i, (imgs, fnames, pids, _) in enumerate(data_loader):
+    shape = [len(data_loader.dataset), num_features, fea_height, fea_width]
+    features = torch.zeros(shape, dtype=torch.half, device='cuda:0')
+
+    for i, (imgs, _, _, _) in enumerate(data_loader):
         data_time += time.time() - end
         end = time.time()
 
-        outputs = extract_cnn_feature(model, imgs)
-        for fname, output, pid in zip(fnames, outputs, pids):
-            features[fname] = output
-            labels[fname] = pid
+        k0 = i * data_loader.batch_size
+        k1 = k0 + len(imgs)
+        features[k0 : k1, :, :, :] = extract_cnn_feature(model, imgs)
 
         fea_time += time.time() - end
         end = time.time()
@@ -54,24 +51,30 @@ def extract_features(model, data_loader, verbose=False):
     if verbose:
         print('Feature time: {:.3f} seconds. Data time: {:.3f} seconds.'.format(fea_time, data_time))
 
-    return features, labels
+    return features
 
 
-def pairwise_distance(matcher, prob_fea, gal_fea, gal_batch_size=4, prob_batch_size=4096):
-    with torch.no_grad():
+def pairwise_distance(matcher, prob_fea, gal_fea, gal_batch_size=128, prob_batch_size=128, verbose=False):
+    with torch.inference_mode():
         num_gals = gal_fea.size(0)
         num_probs = prob_fea.size(0)
-        score = torch.zeros(num_probs, num_gals, device=prob_fea.device)
-        matcher.eval()
+        score = torch.zeros(num_probs, num_gals, dtype=torch.half, device=prob_fea.device)
+
         for i in range(0, num_probs, prob_batch_size):
             j = min(i + prob_batch_size, num_probs)
-            matcher.make_kernel(prob_fea[i: j, :, :, :].cuda())
+            if verbose:
+                print('Query batch %d / %d ... \t' % (i // prob_batch_size + 1, num_probs // prob_batch_size + 1), end='\r', file=sys.stdout.console)
+
+            pfea = prob_fea[i: j, :, :, :]
             for k in range(0, num_gals, gal_batch_size):
                 k2 = min(k + gal_batch_size, num_gals)
-                score[i: j, k: k2] = matcher(gal_fea[k: k2, :, :, :].cuda())
-        # scale matching scores to make them visually more recognizable
-        score = torch.sigmoid(score / 10)
-    return (1. - score).cpu()  # [p, g]
+                score[i: j, k: k2] = matcher(pfea, gal_fea[k: k2, :, :, :])
+        # # scale matching scores to make them visually more recognizable
+        # score = torch.sigmoid(score / 10)
+        # dist = 1. - score
+        dist = -score
+        dist = dist.cpu().float()
+    return dist  # [p, g]
 
 
 def evaluate_all(distmat, query=None, gallery=None,
@@ -171,36 +174,39 @@ def reranking(dist, query_num, k1=20, k2=6, lamda_value=0.3, verbose=False):
 
 
 class Evaluator(object):
-    def __init__(self, model):
+    def __init__(self, model, matcher, test_gal_batch=128, test_prob_batch=128, 
+            tau=100, sigma=200, K=10, alpha=0.2):
         super(Evaluator, self).__init__()
-        self.model = model
+        self.num_features = matcher.num_features
+        self.fea_height = matcher.height
+        self.fea_width = matcher.width
+        self.test_gal_batch = test_gal_batch
+        self.test_prob_batch = test_prob_batch
+        # parameters for TLift:
+        self.tau = tau
+        self.sigma = sigma
+        self.K = K
+        self.alpha = alpha
+        
+        self.model = model.half().cuda().eval()
+        self.matcher = matcher.half().cuda().eval()
 
-    def evaluate(self, matcher, testset, query_loader, gallery_loader, gal_batch_size=4,
-                 prob_batch_size=4096, tau=100, sigma=200, K=10, alpha=0.2):
+    def evaluate(self, testset, query_loader, gallery_loader):
         query = testset.query
         gallery = testset.gallery
 
+        prob_fea = extract_features(self.model, query_loader, self.num_features, self.fea_height, self.fea_width)
+        gal_fea = extract_features(self.model, gallery_loader, self.num_features, self.fea_height, self.fea_width)
+
         print('Compute similarity ...', end='\t')
         start = time.time()
-
-        prob_fea, _ = extract_features(self.model, query_loader)
-        prob_fea = torch.cat([prob_fea[f].unsqueeze(0) for f, _, _, _ in query], 0)
-        num_prob = len(query)
-        num_gal = len(gallery)
-        batch_size = gallery_loader.batch_size
-        dist = torch.zeros(num_prob, num_gal)
-
-        for i, (imgs, fnames, pids, _) in enumerate(gallery_loader):
-            print('Compute similarity %d / %d. \t' % (i + 1, len(gallery_loader)), end='\r', file=sys.stdout.console)
-            gal_fea = extract_cnn_feature(self.model, imgs)
-            g0 = i * batch_size
-            g1 = min(num_gal, (i + 1) * batch_size)
-            dist[:, g0:g1] = pairwise_distance(matcher, prob_fea, gal_fea, batch_size, prob_batch_size)  # [p, g]
-
+        dist = pairwise_distance(self.matcher, prob_fea, gal_fea, self.test_gal_batch, self.test_prob_batch)
         print('Time: %.3f seconds.' % (time.time() - start))
         rank1, mAP = evaluate_all(dist, query=query, gallery=gallery)
 
         if testset.has_time_info:
+            num_prob = len(query)
+            num_gal = len(gallery)
             num_all = num_gal + num_prob
             dist_rerank = torch.zeros(num_all, num_all)
             print('Compute similarity for rerank...', end='\t')
@@ -209,12 +215,10 @@ class Evaluator(object):
             with torch.no_grad():
                 dist_rerank[:num_prob, num_prob:] = dist
                 dist_rerank[num_prob:, :num_prob] = dist.t()
-                dist_rerank[:num_prob, :num_prob] = pairwise_distance(matcher, prob_fea, prob_fea, gal_batch_size,
-                                                                    prob_batch_size)
-                gal_fea, _ = extract_features(self.model, gallery_loader, verbose=True)
-                gal_fea = torch.cat([gal_fea[f].unsqueeze(0) for f, _, _, _ in gallery], 0)
-                dist_rerank[num_prob:, num_prob:] = pairwise_distance(matcher, gal_fea, gal_fea, gal_batch_size,
-                                                                    prob_batch_size)
+                dist_rerank[:num_prob, :num_prob] = pairwise_distance(self.matcher, prob_fea, prob_fea, self.test_gal_batch,
+                                                                    self.test_prob_batch)
+                dist_rerank[num_prob:, num_prob:] = pairwise_distance(self.matcher, gal_fea, gal_fea, self.test_gal_batch,
+                                                                    self.test_prob_batch)
 
             dist_rerank = reranking(dist_rerank, num_prob, verbose=True)
             print('Time: %.3f seconds.' % (time.time() - start))
@@ -224,7 +228,7 @@ class Evaluator(object):
             print('Compute TLift...', end='\t')
             start = time.time()
             pre_tlift_dict = pre_tlift(gallery, query)
-            score_tlift = TLift(score_rerank, tau=tau, sigma=sigma, K=K, alpha=alpha,
+            score_tlift = TLift(score_rerank, tau=self.tau, sigma=self.sigma, K=self.K, alpha=self.alpha,
                                 **pre_tlift_dict)
             print('Time: %.3f seconds.' % (time.time() - start))
             dist_tlift = 1 - score_tlift
