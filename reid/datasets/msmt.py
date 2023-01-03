@@ -65,5 +65,5 @@ class MSMT(object):
               .format(self.num_train_ids, len(self.train)))
         print("  query    | {:5d} | {:8d}"
               .format(self.num_query_ids, len(self.query)))
-        print("  gallery  | {:5d} | {:8d}"
+        print("  gallery  | {:5d} | {:8d}\n"
               .format(self.num_gallery_ids, len(self.gallery)))

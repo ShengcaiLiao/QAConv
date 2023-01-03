@@ -47,5 +47,5 @@ class RandPerson(object):
         print(self.__class__.__name__, "dataset loaded")
         print("  subset   | # ids | # images")
         print("  ---------------------------")
-        print("  all    | {:5d} | {:8d}"
+        print("  all    | {:5d} | {:8d}\n"
               .format(self.num_train_ids, len(self.train)))

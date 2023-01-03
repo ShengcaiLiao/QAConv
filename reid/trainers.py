@@ -25,7 +25,7 @@ class BaseTrainer(object):
 
         end = time.time()
         for i, inputs in enumerate(data_loader):
-            self.model.eval()
+            self.model.eval()  # Freeze running states of the backbone BN for a better generalization
             self.criterion.train()
 
             data_time.update(time.time() - end)
