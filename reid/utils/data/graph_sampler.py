@@ -27,7 +27,7 @@ from reid.evaluators import extract_features, pairwise_distance
 class GraphSampler(Sampler):
     def __init__(self, data_source, img_path, transformer, model, matcher, batch_size=64, num_instance=4, 
                 gal_batch_size=256, prob_batch_size=256, save_path=None, verbose=False):
-        super(GraphSampler, self).__init__(data_source)
+        super().__init__()
         self.data_source = data_source
         self.img_path = img_path
         self.transformer = transformer
